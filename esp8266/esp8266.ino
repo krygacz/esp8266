@@ -22,7 +22,7 @@ NTPSyncEvent_t ntpEvent;
 
 
 
-String ver = "3.4.1";
+String ver = "3.4.2";
 
 
 
@@ -110,7 +110,7 @@ void loop() {
       Serial.print("ssid: >" + ssid_temp + "< password: >" + password_temp + "<\n");
       String s = "HTTP/1.1 200 OK\r\n";        // the common header:
       s += "Content-Type: text/html\r\n\r\n";
-      s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script>switching to normal...</html>";
+      s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script><h1>Rebooting...</h1><br><h2>You can now close this page</h2></html>";
       cli.print(s);
       printed = 1;
       updateconf();
@@ -137,47 +137,64 @@ void config_display(WiFiClient clientx) {
   Serial.println("-config_display-");
   clientx.println("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n");
   sxc = "";
-sxc += "<!DOCTYPE html />";
-sxc += "<html>";
-sxc += "<head>";
-sxc += "<meta charset='UTF-8'> ";
-sxc += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-sxc += "<title>Configuration</title>";
-sxc += "<style>";
-sxc += "*{font-family:'Roboto', sans-serif;} ";
-sxc += "h3 span{font-size:30px;} ";
-sxc += "h3{font-family:'Roboto', sans-serif;font-size:30px;color:#616161;display:inline-block;position:fixed;right:20px;bottom:10px} ";
-sxc += "h1{font-family:'Roboto', sans-serif;font-size:40px;display:block;} ";
-sxc += "a{display:block;font-size:35px;font-family:'Roboto', sans-serif;font-weight:100;background:white;width:100vw;position:relative;left:0;color:#008aff;text-decoration:none;}";
-sxc += "#container {position: fixed;top: 50%;left: 50%;transform:translate(-100%, -50%);margin-left: -34px;background: #45453f;}";
-sxc += "* { box-sizing:border-box; outline:none}";
-sxc += ".group{ position:relative; margin-bottom:45px; text-align:center;}";
-sxc += "input{font-size:18px;padding:10px 10px 10px 5px;display:block;width:300px;border:none;border-bottom:1px solid #757575;transition:all 200ms;}";
-sxc += "input:focus{outline:none;box-shadow:none;!important} ";
-sxc += "label{color:#999; font-family:'Roboto', sans-serif;font-size:18px;font-weight:300;position:absolute;pointer-events:none;left:5px;top:10px;transition:0.2s ease all;}";
-sxc += "input:focus ~ label, .group .valid ~ label{top:-20px;font-size:14px;color:#008aff;}";
-sxc += "input:focus, .group .valid{border-color:transparent;}";
-sxc += ".bar{position:relative;display:block; width:300px; }";
-sxc += ".bar:before, .bar:after{content:'';height:2px; width:0;bottom:1px; position:absolute;background:#008aff; transition:0.2s ease all;}";
-sxc += ".bar:before{left:50%;}.bar:after{right:50%; }";
-sxc += "input:focus ~ .bar:before, input:focus ~ .bar:after{width:50%;}";
-sxc += ".form button{background:white;border:1px solid #e0e0e0;padding:10px 100px;display:block;border-radius:6px;transition: all 300ms;position:relative;border-color:#00a8ff;color:#666666;text-align:center;left:50%;transform:translate(-50%, 0);cursor:pointer;} ";
-sxc += ".form button:hover{background: #2196f3;color:white;} ";
-sxc += ".form{background:white;width:300px;max-width:302px;height:210px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);bottom:calc(100vh - (30vh + (38vw / 16 * 9) + 280px));}";
-sxc += "</style>";
-sxc += "</head>";
-sxc += "<body>";
-sxc += "<br><h1><center>Wi-Fi Config</center></h1>";
-sxc += "<br><br><br>";
-sxc += "<form id='form' method='POST' class='form'>";
-sxc += "<div class='group'><input id='ssid' onkeyup='chk()' name='ssid' type='text'><span class='bar'></span><label>SSID</label></div>";
-sxc += "<div class='group'><input id='pwd' onkeyup='chk()' name='password' type='password'><span class='bar'></span><label>Password</label></div>";
-sxc += "<br>";
-sxc += "<button type='submit'>Save</button></form>";
-sxc += "";
-sxc += "</body>";
-sxc += "</html>";
-clientx.println(sxc);
+  sxc += "<!DOCTYPE html />";
+  sxc += "<html>";
+  sxc += "<head>";
+  sxc += "<meta charset='UTF-8'> ";
+  sxc += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  sxc += "<title>Configuration</title>";
+  sxc += "<style>";
+  sxc += "*{font-family:'Roboto', sans-serif;} ";
+  sxc += "h3 span{font-size:30px;} ";
+  sxc += "h3{font-family:'Roboto', sans-serif;font-size:30px;color:#616161;display:inline-block;position:fixed;right:20px;bottom:10px} ";
+  sxc += "h1{font-family:'Roboto', sans-serif;font-size:40px;display:block;transition: all 120ms;} ";
+  sxc += "a{display:block;font-size:35px;font-family:'Roboto', sans-serif;font-weight:100;background:white;width:100vw;position:relative;left:0;color:#008aff;text-decoration:none;}";
+  sxc += "#container {position: fixed;top: 50%;left: 50%;transform:translate(-100%, -50%);margin-left: -34px;background: #45453f;}";
+  sxc += "* { box-sizing:border-box; outline:none}";
+  sxc += ".group{ position:relative; margin-bottom:45px; text-align:center;}";
+  sxc += "input{font-size:18px;padding:10px 10px 10px 5px;display:block;width:300px;border:none;border-bottom:1px solid #757575;transition:all 200ms;}";
+  sxc += "input:focus{outline:none;box-shadow:none;!important} ";
+  sxc += "label{color:#999; font-family:'Roboto', sans-serif;font-size:18px;font-weight:300;position:absolute;pointer-events:none;left:5px;top:10px;transition:0.2s ease all;}";
+  sxc += "input:focus ~ label, .group .valid ~ label{top:-20px;font-size:14px;color:#008aff;}";
+  sxc += "input:focus, .group .valid{border-color:transparent;}";
+  sxc += ".bar{position:relative;display:block; width:300px; }";
+  sxc += ".bar:before, .bar:after{content:'';height:2px; width:0;bottom:1px; position:absolute;background:#008aff; transition:0.2s ease all;}";
+  sxc += ".bar:before{left:50%;}.bar:after{right:50%; }";
+  sxc += "input:focus ~ .bar:before, input:focus ~ .bar:after{width:50%;}";
+  sxc += ".form button{background:white;border:1px solid #e0e0e0;padding:10px 100px;display:block;border-radius:6px;transition: all 300ms;position:relative;border-color:#00a8ff;color:#666666;text-align:center;left:50%;transform:translate(-50%, 0);cursor:pointer;} ";
+  sxc += ".form button:hover{background: #2196f3;color:white;} ";
+  sxc += ".form{background:white;width:300px;max-width:302px;height:210px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);bottom:calc(100vh - (30vh + (38vw / 16 * 9) + 280px));}";
+  sxc += "@media screen and (max-height:520px){h1{font-size:25px;}}";
+  sxc += "@media screen and (max-height:400px){h1{font-size:16px;}}";
+  sxc += "</style>";
+  sxc += "</head>";
+  clientx.println(sxc);
+  sxc = "";
+  sxc += "<body>";
+  sxc += "<br><h1><center>Wi-Fi Config</center></h1>";
+  sxc += "<br><br><br>";
+  sxc += "<form id='form' method='POST' class='form'>";
+  sxc += "<div class='group'><input id='ssid' onkeyup='chk()' name='ssid' type='text'><span class='bar'></span><label>SSID</label></div>";
+  sxc += "<div class='group'><input id='pwd' onkeyup='chk()' name='password' type='password'><span class='bar'></span><label>Password</label></div>";
+  sxc += "<br>";
+  sxc += "<button type='submit'>Save</button></form>";
+  sxc += "<script>";
+  sxc += "function chk(){";
+  sxc += "if(document.getElementById('ssid').value != ''){";
+  sxc += "document.getElementById('ssid').classList.add('valid');";
+  sxc += "}else{";
+  sxc += "document.getElementById('ssid').classList.remove('valid');";
+  sxc += "}";
+  sxc += "if(document.getElementById('pwd').value != ''){";
+  sxc += "document.getElementById('pwd').classList.add('valid');";
+  sxc += "}else{";
+  sxc += "document.getElementById('pwd').classList.remove('valid');";
+  sxc += "}";
+  sxc += "}";
+  sxc += "</script>";
+  sxc += "</body>";
+  sxc += "</html>";
+  clientx.println(sxc);
 }
 
 void wifi_config() {
@@ -214,6 +231,10 @@ int reset(String params){
   EEPROM.commit();
   return 1;
 }
+int restart(String params){
+  ESP.restart();
+  return 1;
+}
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
   if (ntpEvent) {
     Serial.print("Time Sync error: ");
@@ -221,10 +242,6 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent) {
       Serial.println("NTP server not reachable");
     else if (ntpEvent == invalidAddress)
       Serial.println("Invalid NTP server address");
-  }
-  else {
-    Serial.print("Got NTP time: ");
-    Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
   }
 }
 void normal_setup() {
@@ -234,6 +251,7 @@ void normal_setup() {
   rest.variable("software_version", &ver);
   rest.function("update", updater);
   rest.function("reset_eeprom", reset);
+  rest.function("restart", restart);
   rest.variable("ip", &ipaddr);
   rest.variable("time", &realTime);
   rest.set_id("rtx04");
@@ -259,6 +277,6 @@ void normal_setup() {
     syncEventTriggered = true;
   });
   NTP.begin("tempus2.gum.gov.pl", 1, true);
-  NTP.setInterval(63);
+  NTP.setInterval(600);
   server.begin();
 }
