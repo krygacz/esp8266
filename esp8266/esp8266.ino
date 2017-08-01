@@ -1,5 +1,3 @@
-// Copyright (c) 2015, Yaler GmbH, Switzerland
-// All rights reserved
 #include <ESP8266WiFi.h>
 //#include <YalerESP8266WiFiServer.h>
 #include <PubSubClient.h>
@@ -21,7 +19,7 @@ String ssid_temp, password_temp, sxc, ipaddr;
 
 
 
-String ver = "3.1.2";
+String ver = "3.1.3";
 
 
 
@@ -44,7 +42,6 @@ void setup() {
   Serial.begin(74880);
   Serial.println("");
   Serial.println("-setup-");
-  //pinMode(LED_BUILTIN, OUTPUT);
   EEPROM.begin(512);
   //reset("none");
   delay(10);
@@ -256,6 +253,5 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
-  //digitalWrite(LED_BUILTIN, HIGH);
   server.begin();
 }
