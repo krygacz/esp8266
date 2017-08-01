@@ -4,6 +4,7 @@
 #include <aREST.h>
 #include <ESP8266httpUpdate.h>
 #include <EEPROM.h>
+#include <NTPClient.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
 //YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
@@ -14,7 +15,7 @@ boolean servermode = false;
 boolean printed;
 const char* ssid;
 const char* password;
-String ssid_temp, password_temp, sxc, ipaddr;
+String ssid_temp, password_temp, sxc, ipaddr, realTime;
 
 
 
@@ -113,6 +114,7 @@ void loop() {
     }
     return;
   } else {
+    realTime = NTP.getTimeDate(now());
  WiFiClient client = server.available();
   if (!client) {
     return;
@@ -235,6 +237,7 @@ void normal_setup() {
   rest.function("update", updater);
   rest.function("reset_eeprom", reset);
   rest.variable("ip", &ipaddr);
+  rest.variable("time", &realTime);
   rest.set_id("rtx04");
   rest.set_name("esp8266");
   WiFi.begin(ssid, password);
@@ -253,5 +256,21 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
+  NTP.onSyncEvent([](NTPSyncEvent_t ntpEvent) {
+    switch (ntpEvent) {
+    case NTP_EVENT_INIT:
+      break;
+    case NTP_EVENT_STOP:
+      break;
+    case NTP_EVENT_NO_RESPONSE:
+      Serial.printf("NTP server not reachable.\n");
+      break;
+    case NTP_EVENT_SYNCHRONIZED:
+      Serial.printf("Got NTP time: %s\n", NTP.getTimeDate(NTP.getLastSync()));
+      break;
+    }
+  });
+  NTP.init((char *)"pool.ntp.org", UTC0900);
+  NTP.setPollingInterval(60);
   server.begin();
 }
