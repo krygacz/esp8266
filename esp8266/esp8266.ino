@@ -19,7 +19,7 @@ String ssid_temp, password_temp, sxc, ipaddr;
 
 
 
-String ver = "3.1.3";
+String ver = "3.2.2";
 
 
 
@@ -70,48 +70,51 @@ return;
 
 void loop() {
     if (servermode == true) {
-    WiFiClient cli = serverc.available();  // Check if a client has connected
+    WiFiClient cli = serverc.available();
     printed = 0;
     if (!cli){return;}
-    String req = cli.readStringUntil('\r');// Read the first line of the request
-    if (req.indexOf("/ssid/") != -1) {
-      String reqx = req;
-      reqx.replace("GET /ssid/", "");
-      reqx.replace(" HTTP/1.1", "");
-      ssid_temp = reqx;
-      String s = "HTTP/1.1 200 OK\r\n";        // the common header:
-      s += "Content-Type: text/html\r\n\r\n";
-      s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = 'http://192.168.4.1';}, 1000);</script>ok<br>ssid: ";
-      s += ssid_temp + "</html>";
-      cli.print(s);
-      printed = 1;
-    }
-    if (req.indexOf("/pwd/") != -1) {
-      String reqx = req;
-      reqx.replace("GET /pwd/", "");
-      reqx.replace(" HTTP/1.1", "");
-      password_temp = reqx;
-      String s = "HTTP/1.1 200 OK\r\n";        // the common header:
-      s += "Content-Type: text/html\r\n\r\n";
-      s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = 'http://192.168.4.1';}, 1000);</script>ok<br>pwd: ";
-      s += password_temp + "</html>";
-      cli.print(s);
-      printed = 1;
-    }
-    if (req.indexOf("/apply") != -1) {
-      Serial.println("conf applied");
+    String req = cli.readString();
+    Serial.println(req);
+    if(req.indexOf("POST") != -1){
+      const int datalen = req.length() + 1;
+      char data[datalen];
+      req.toCharArray(data, datalen);
+      char *leader = data;
+      char *follower = leader;
+      while (*leader) {
+          if (*leader == '%') {
+              leader++;
+              char high = *leader;
+              leader++;
+              char low = *leader;
+              if (high > 0x39) high -= 7;
+              high &= 0x0f;
+              if (low > 0x39) low -= 7;
+              low &= 0x0f;
+              *follower = (high << 4) | low;
+          } else {
+              *follower = *leader;
+          }
+          leader++;
+          follower++;
+      }
+      *follower = 0;
+      String req2(data);
+      ssid_temp = req2;
+      password_temp = req2;
+      ssid_temp = ssid_temp.substring(ssid_temp.indexOf("ssid=") + 5,ssid_temp.indexOf("&password=")); 
+      password_temp = password_temp.substring(password_temp.indexOf("&password=") + 10);
+      Serial.print("ssid: >" + ssid_temp + "< password: >" + password_temp + "<\n");
       String s = "HTTP/1.1 200 OK\r\n";        // the common header:
       s += "Content-Type: text/html\r\n\r\n";
       s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script>switching to normal...</html>";
       cli.print(s);
       printed = 1;
       updateconf();
+    } else {
+          config_display(cli);
     }
-    if (!printed) {
-      Serial.println("default page");
-      config_display(cli);
-    }
-    return;
+return;
   } else {
  WiFiClient client = server.available();
   if (!client) {
@@ -130,67 +133,47 @@ void config_display(WiFiClient clientx) {
   Serial.println("-config_display-");
   clientx.println("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n");
   sxc = "";
-  sxc += "<html>";
-  sxc += "<head>";
-  sxc += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-  sxc += "<title>Configuration</title>";
-  sxc += "<style>";
-  sxc += "*{font-family:'Roboto', sans-serif;} ";
-  sxc += "h3 span{font-size:30px;} ";
-  sxc += "h3{font-family:'Roboto', sans-serif;font-size:30px;color:#616161;display:inline-block;position:fixed;right:20px;bottom:10px} ";
-  sxc += "h1{font-family:'Roboto', sans-serif;font-size:40px;display:block;} ";
-  sxc += "a{display:block;font-size:35px;font-family:'Roboto', sans-serif;font-weight:100;background:white;width:100vw;position:relative;left:0;color:#008aff;text-decoration:none;}";
-  sxc += "#container {position: fixed;top: 50%;left: 50%;transform:translate(-100%, -50%);margin-left: -34px;background: #45453f;}";
-  sxc += "* { box-sizing:border-box; outline:none}";
-  sxc += ".group{ position:relative; margin-bottom:45px; text-align:center;}";
-  sxc += "input{font-size:18px;padding:10px 10px 10px 5px;display:block;width:300px;border:none;border-bottom:1px solid #757575;transition:all 200ms;}";
-  sxc += "input:focus{outline:none;box-shadow:none;!important} ";
-  sxc += "label{color:#999; font-family:'Roboto', sans-serif;font-size:18px;font-weight:300;position:absolute;pointer-events:none;left:5px;top:10px;transition:0.2s ease all;}";
-  sxc += "input:focus ~ label, .group .valid ~ label{top:-20px;font-size:14px;color:#008aff;}";
-  sxc += "input:focus, .group .valid{border-color:transparent;}";
-  sxc += ".bar{position:relative;display:block; width:300px; }";
-  sxc += ".bar:before, .bar:after{content:'';height:2px; width:0;bottom:1px; position:absolute;background:#008aff; transition:0.2s ease all;}";
-  sxc += ".bar:before{left:50%;}.bar:after{right:50%; }";
-  sxc += "input:focus ~ .bar:before, input:focus ~ .bar:after{width:50%;}";
-  sxc += ".form button{background:white;border:1px solid #e0e0e0;padding:10px 100px;display:block;border-radius:6px;transition: all 300ms;position:relative;border-color:#00a8ff;color:#666666;text-align:center;left:50%;transform:translate(-50%, 0);cursor:pointer;} ";
-  sxc += ".form button:hover{background: #2196f3;color:white;} ";
-  sxc += ".form{background:white;width:300px;max-width:302px;height:210px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);bottom:calc(100vh - (30vh + (38vw / 16 * 9) + 280px));}";
-  sxc += "</style>";
-  sxc += "</head>";
-  clientx.println(sxc);
-  sxc = "";
-  sxc += "<body>";
-  sxc += "<br><h1><center>Wi-Fi Config</center></h1>";
-  sxc += "<br><br><br>";
-  sxc += "<div id='form' class='form'>";
-  sxc += "<div class='group'><input id='ssid' onkeyup='chk()' type='text'><span class='bar'></span><label>SSID</label></div>";
-  sxc += "<div class='group'><input id='pwd' onkeyup='chk()' type='password'><span class='bar'></span><label>Password</label></div>";
-  sxc += "<br>";
-  sxc += "<button onclick='save()'>Save</button></div>";
-  sxc += "<script>";
-  sxc += "function chk(){";
-  sxc += "if(document.getElementById('ssid').value != ''){";
-  sxc += "document.getElementById('ssid').classList.add('valid');";
-  sxc += "}else{";
-  sxc += "document.getElementById('ssid').classList.remove('valid');";
-  sxc += "}";
-  sxc += "if(document.getElementById('pwd').value != ''){";
-  sxc += "document.getElementById('pwd').classList.add('valid');";
-  sxc += "}else{";
-  sxc += "document.getElementById('pwd').classList.remove('valid');";
-  sxc += "}";
-  sxc += "}";
-  sxc += "function save(){";
-  sxc += "var ss = document.getElementById('ssid').value;";
-  sxc += "var pw = document.getElementById('pwd').value;";
-  sxc += "var i = document.createElement('img');i.src = '/ssid/' + ss;";
-  sxc += "var j = document.createElement('img');j.src = '/pwd/' + pw;";
-  sxc += "setTimeout(function(){window.location = 'http://192.168.4.1/apply'}, 400);";
-  sxc += "}";
-  sxc += "</script>";
-  sxc += "</body>";
-  sxc += "</html>";
-  clientx.println(sxc);
+sxc += "<!DOCTYPE html />";
+sxc += "<html>";
+sxc += "<head>";
+sxc += "<meta charset='UTF-8'> ";
+sxc += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+sxc += "<title>Configuration</title>";
+sxc += "<style>";
+sxc += "*{font-family:'Roboto', sans-serif;} ";
+sxc += "h3 span{font-size:30px;} ";
+sxc += "h3{font-family:'Roboto', sans-serif;font-size:30px;color:#616161;display:inline-block;position:fixed;right:20px;bottom:10px} ";
+sxc += "h1{font-family:'Roboto', sans-serif;font-size:40px;display:block;} ";
+sxc += "a{display:block;font-size:35px;font-family:'Roboto', sans-serif;font-weight:100;background:white;width:100vw;position:relative;left:0;color:#008aff;text-decoration:none;}";
+sxc += "#container {position: fixed;top: 50%;left: 50%;transform:translate(-100%, -50%);margin-left: -34px;background: #45453f;}";
+sxc += "* { box-sizing:border-box; outline:none}";
+sxc += ".group{ position:relative; margin-bottom:45px; text-align:center;}";
+sxc += "input{font-size:18px;padding:10px 10px 10px 5px;display:block;width:300px;border:none;border-bottom:1px solid #757575;transition:all 200ms;}";
+sxc += "input:focus{outline:none;box-shadow:none;!important} ";
+sxc += "label{color:#999; font-family:'Roboto', sans-serif;font-size:18px;font-weight:300;position:absolute;pointer-events:none;left:5px;top:10px;transition:0.2s ease all;}";
+sxc += "input:focus ~ label, .group .valid ~ label{top:-20px;font-size:14px;color:#008aff;}";
+sxc += "input:focus, .group .valid{border-color:transparent;}";
+sxc += ".bar{position:relative;display:block; width:300px; }";
+sxc += ".bar:before, .bar:after{content:'';height:2px; width:0;bottom:1px; position:absolute;background:#008aff; transition:0.2s ease all;}";
+sxc += ".bar:before{left:50%;}.bar:after{right:50%; }";
+sxc += "input:focus ~ .bar:before, input:focus ~ .bar:after{width:50%;}";
+sxc += ".form button{background:white;border:1px solid #e0e0e0;padding:10px 100px;display:block;border-radius:6px;transition: all 300ms;position:relative;border-color:#00a8ff;color:#666666;text-align:center;left:50%;transform:translate(-50%, 0);cursor:pointer;} ";
+sxc += ".form button:hover{background: #2196f3;color:white;} ";
+sxc += ".form{background:white;width:300px;max-width:302px;height:210px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);bottom:calc(100vh - (30vh + (38vw / 16 * 9) + 280px));}";
+sxc += "</style>";
+sxc += "</head>";
+sxc += "<body>";
+sxc += "<br><h1><center>Wi-Fi Config</center></h1>";
+sxc += "<br><br><br>";
+sxc += "<form id='form' method='POST' class='form'>";
+sxc += "<div class='group'><input id='ssid' onkeyup='chk()' name='ssid' type='text'><span class='bar'></span><label>SSID</label></div>";
+sxc += "<div class='group'><input id='pwd' onkeyup='chk()' name='password' type='password'><span class='bar'></span><label>Password</label></div>";
+sxc += "<br>";
+sxc += "<button type='submit'>Save</button></form>";
+sxc += "";
+sxc += "</body>";
+sxc += "</html>";
+clientx.println(sxc);
 }
 
 void wifi_config() {
@@ -241,7 +224,7 @@ void normal_setup() {
   Serial.println("Connecting to wifi with ssid='" + (String)ssid + "' password='" + (String)password + "'");
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    if(counter >= 10){
+    if(counter >= 25){
       reset("none");
       Serial.println("Couldn't connect with WiFi. Switching to configuration mode");
       ESP.restart();
