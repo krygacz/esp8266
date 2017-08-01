@@ -1,14 +1,15 @@
 // Copyright (c) 2015, Yaler GmbH, Switzerland
 // All rights reserved
 #include <ESP8266WiFi.h>
-#include <YalerESP8266WiFiServer.h>
+//#include <YalerESP8266WiFiServer.h>
 #include <PubSubClient.h>
 #include <aREST.h>
 #include <ESP8266httpUpdate.h>
 #include <EEPROM.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
-YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
+//YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
+WiFiServer server(80);
 IPAddress apIP(192, 168, 4, 1);
 aREST rest = aREST();
 boolean servermode = false;
@@ -241,13 +242,20 @@ void normal_setup() {
   rest.set_name("esp8266");
   WiFi.begin(ssid, password);
   Serial.println("Connecting to wifi with ssid='" + (String)ssid + "' password='" + (String)password + "'");
+  int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
+    if(counter >= 10){
+      reset("none");
+      Serial.println("Couldn't connect with WiFi. Switching to configuration mode");
+      ESP.restart();
+    }
     delay(500);
     Serial.print(".");
+    counter++;
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
   ipaddr = WiFi.localIP().toString();
+  Serial.println("");
+  Serial.println("WiFi connected with IP " + ipaddr);
   //digitalWrite(LED_BUILTIN, HIGH);
   server.begin();
 }
