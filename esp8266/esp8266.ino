@@ -4,6 +4,8 @@
 #include <aREST.h>
 #include <ESP8266httpUpdate.h>
 #include <EEPROM.h>
+#include <TimeLib.h>
+#include <NtpClientLib.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
 //YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
@@ -14,12 +16,13 @@ boolean servermode = false;
 boolean printed;
 const char* ssid;
 const char* password;
-String ssid_temp, password_temp, sxc, ipaddr;
+String ssid_temp, password_temp, sxc, ipaddr, realTime;
+boolean syncEventTriggered = false;
+NTPSyncEvent_t ntpEvent;
 
 
 
-
-String ver = "3.2.2";
+String ver = "3.4.1";
 
 
 
@@ -116,6 +119,7 @@ void loop() {
     }
 return;
   } else {
+    realTime = NTP.getTimeDateString();
  WiFiClient client = server.available();
   if (!client) {
     return;
@@ -210,6 +214,19 @@ int reset(String params){
   EEPROM.commit();
   return 1;
 }
+void processSyncEvent(NTPSyncEvent_t ntpEvent) {
+  if (ntpEvent) {
+    Serial.print("Time Sync error: ");
+    if (ntpEvent == noResponse)
+      Serial.println("NTP server not reachable");
+    else if (ntpEvent == invalidAddress)
+      Serial.println("Invalid NTP server address");
+  }
+  else {
+    Serial.print("Got NTP time: ");
+    Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
+  }
+}
 void normal_setup() {
   Serial.println("-normal-setup-");
   WiFi.mode(WIFI_STA);
@@ -218,6 +235,7 @@ void normal_setup() {
   rest.function("update", updater);
   rest.function("reset_eeprom", reset);
   rest.variable("ip", &ipaddr);
+  rest.variable("time", &realTime);
   rest.set_id("rtx04");
   rest.set_name("esp8266");
   WiFi.begin(ssid, password);
@@ -236,5 +254,11 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
+  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
+    ntpEvent = event;
+    syncEventTriggered = true;
+  });
+  NTP.begin("tempus2.gum.gov.pl", 1, true);
+  NTP.setInterval(63);
   server.begin();
 }
