@@ -4,7 +4,8 @@
 #include <aREST.h>
 #include <ESP8266httpUpdate.h>
 #include <EEPROM.h>
-#include <NTPClient.h>
+#include <TimeLib.h>
+#include <NtpClientLib.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
 //YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
@@ -16,11 +17,12 @@ boolean printed;
 const char* ssid;
 const char* password;
 String ssid_temp, password_temp, sxc, ipaddr, realTime;
+boolean syncEventTriggered = false;
+NTPSyncEvent_t ntpEvent;
 
 
 
-
-String ver = "3.2.2";
+String ver = "3.4.1";
 
 
 
@@ -117,7 +119,7 @@ void loop() {
     }
 return;
   } else {
-    realTime = NTP.getTimeDate(now());
+    realTime = NTP.getTimeDateString();
  WiFiClient client = server.available();
   if (!client) {
     return;
@@ -212,6 +214,19 @@ int reset(String params){
   EEPROM.commit();
   return 1;
 }
+void processSyncEvent(NTPSyncEvent_t ntpEvent) {
+  if (ntpEvent) {
+    Serial.print("Time Sync error: ");
+    if (ntpEvent == noResponse)
+      Serial.println("NTP server not reachable");
+    else if (ntpEvent == invalidAddress)
+      Serial.println("Invalid NTP server address");
+  }
+  else {
+    Serial.print("Got NTP time: ");
+    Serial.println(NTP.getTimeDateString(NTP.getLastNTPSync()));
+  }
+}
 void normal_setup() {
   Serial.println("-normal-setup-");
   WiFi.mode(WIFI_STA);
@@ -239,21 +254,11 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
-  NTP.onSyncEvent([](NTPSyncEvent_t ntpEvent) {
-    switch (ntpEvent) {
-    case NTP_EVENT_INIT:
-      break;
-    case NTP_EVENT_STOP:
-      break;
-    case NTP_EVENT_NO_RESPONSE:
-      Serial.printf("NTP server not reachable.\n");
-      break;
-    case NTP_EVENT_SYNCHRONIZED:
-      Serial.printf("Got NTP time: %s\n", NTP.getTimeDate(NTP.getLastSync()));
-      break;
-    }
+  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
+    ntpEvent = event;
+    syncEventTriggered = true;
   });
-  NTP.init((char *)"pool.ntp.org", UTC0900);
-  NTP.setPollingInterval(60);
+  NTP.begin("tempus2.gum.gov.pl", 1, true);
+  NTP.setInterval(63);
   server.begin();
 }
