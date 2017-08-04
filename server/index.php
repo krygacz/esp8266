@@ -18,7 +18,14 @@ if(isset($_GET['config'])){
   $result = $stmt->get_result();
   $stmt->close();
   if ($row = $result->fetch_row()) {
-    echo "<script>alert('Name must be unique');</script>";
+    $stmt = $conn->stmt_init();
+    $stmt->prepare("UPDATE esp8266 SET ip_address = ? WHERE name = ?");
+    if(!$stmt){
+      die("fail: " . $conn->error);
+    }
+    $stmt->bind_param("ss", $_GET['ip_address'], $_GET['name']);
+    $stmt->execute();
+    $stmt->close();
   } else {
     $stmt = $conn->stmt_init();
     $stmt->prepare("SELECT * FROM esp8266 WHERE ip_address = ?");
@@ -33,13 +40,12 @@ if(isset($_GET['config'])){
       echo "<script>alert('IP address must be unique');</script>";
     } else {
   $stmt = $conn->stmt_init();
-  $stmt->prepare("INSERT INTO esp8266 (name,version,ip_address) VALUES (?, ?, ?)");
+  $stmt->prepare("INSERT INTO esp8266 (name,ip_address,version) VALUES (?, ?, '<unknown>')");
   if(!$stmt){
     die("fail: " . $conn->error);
   }
-  $stmt->bind_param("sss", $_GET['name'], $_GET['version'], $_GET['ip_address']);
+  $stmt->bind_param("ss", $_GET['name'], $_GET['ip_address']);
   $stmt->execute();
-
   $stmt->close();
 }
 }
@@ -73,8 +79,8 @@ $conn->close();
 <?php
 for($x = 0;$x < $counter; $x++){
   $name = $boards[$x][0];
-  $version = $boards[$x][1];
-  $ip_address = $boards[$x][2];
+  $ip_address = $boards[$x][1];
+  $version = $boards[$x][2];
   $is_running = $boards[$x][3];
   $value = $boards[$x][4];
   echo "name: $name version: $version ip address: $ip_address is_on: $is_running value: $value <br><br>";
