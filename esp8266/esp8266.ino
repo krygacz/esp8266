@@ -1,5 +1,4 @@
 #include <ESP8266WiFi.h>
-//#include <YalerESP8266WiFiServer.h>
 #include <PubSubClient.h>
 #include <aREST.h>
 #include <ESP8266httpUpdate.h>
@@ -8,7 +7,6 @@
 #include <NtpClientLib.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
-//YalerESP8266WiFiServer server("try.yaler.io", 80, "gsiot-aj8y-5z4e");
 WiFiServer server(80);
 IPAddress apIP(192, 168, 4, 1);
 aREST rest = aREST();
@@ -16,26 +14,13 @@ boolean servermode = false;
 boolean printed;
 const char* ssid;
 const char* password;
-String ssid_temp, password_temp, sxc, ipaddr, realTime;
+const char* server_ip;
+const char* device_name;
+String ssid_temp, password_temp, server_ip_temp, sxc, ipaddr, realTime, device_name_temp;
 boolean syncEventTriggered = false;
 NTPSyncEvent_t ntpEvent;
 
-
-
-String ver = "3.4.2";
-
-
-
-
-
-
-
-
-
-
-
-
-
+String ver = "4.0.2";
 
 
 void setup() {
@@ -48,7 +33,7 @@ void setup() {
   EEPROM.begin(512);
   //reset("none");
   delay(10);
-  String ssid_saved, password_saved;
+  String ssid_saved, password_saved, server_ip_saved, device_name_saved;
   for (int i = 0; i < 32; ++i)
   {
     ssid_saved += char(EEPROM.read(i));
@@ -57,15 +42,24 @@ void setup() {
   {
     password_saved += char(EEPROM.read(i));
   }
-  if ( ssid_saved == "" ) {
-     Serial.println("");
-    Serial.println("No saved configuration, switching to server_mode");
+  for (int i = 96; i < 128; ++i)
+  {
+    device_name_saved += char(EEPROM.read(i));
+  }
+  for (int i = 128; i < 144; ++i)
+  {
+    server_ip_saved += char(EEPROM.read(i));
+  }
+  if ( ssid_saved == "" || password_saved == "" || device_name == "" || server_ip_saved == "") {
+    Serial.println("");
+    Serial.println("No saved configuration or configuration incomplete, switching to server_mode");
     wifi_config();
     return;
   } else {
-   Serial.println("Acquired configuration: >" + ssid_saved + "< >" + password_saved + "<");
     ssid = ssid_saved.c_str();
     password = password_saved.c_str();
+    server_ip = server_ip_saved.c_str();
+    device_name = device_name_saved.c_str();
     normal_setup();
 return;
   }
@@ -77,7 +71,6 @@ void loop() {
     printed = 0;
     if (!cli){return;}
     String req = cli.readString();
-    Serial.println(req);
     if(req.indexOf("POST") != -1){
       const int datalen = req.length() + 1;
       char data[datalen];
@@ -105,10 +98,14 @@ void loop() {
       String req2(data);
       ssid_temp = req2;
       password_temp = req2;
-      ssid_temp = ssid_temp.substring(ssid_temp.indexOf("ssid=") + 5,ssid_temp.indexOf("&password=")); 
-      password_temp = password_temp.substring(password_temp.indexOf("&password=") + 10);
-      Serial.print("ssid: >" + ssid_temp + "< password: >" + password_temp + "<\n");
-      String s = "HTTP/1.1 200 OK\r\n";        // the common header:
+      device_name_temp = req2;
+      server_ip_temp = req2;
+      ssid_temp = ssid_temp.substring(req2.indexOf("ssid=") + 5,req2.indexOf("&password=")); 
+      password_temp = password_temp.substring(req2.indexOf("&password=") + 10,req2.indexOf("&name="));
+      device_name_temp = device_name_temp.substring(req2.indexOf("&name=") + 6,req2.indexOf("&ip_address="));
+      server_ip_temp = server_ip_temp.substring(req2.indexOf("&ip_address=") + 12);
+      Serial.print("ssid: >" + ssid_temp + "< password: >" + password_temp + "< name: >" + device_name_temp + "< server_ip: >" + server_ip_temp + "<\n");
+      String s = "HTTP/1.1 200 OK\r\n";
       s += "Content-Type: text/html\r\n\r\n";
       s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script><h1>Rebooting...</h1><br><h2>You can now close this page</h2></html>";
       cli.print(s);
@@ -117,10 +114,10 @@ void loop() {
     } else {
           config_display(cli);
     }
-return;
+    return;
   } else {
     realTime = NTP.getTimeDateString();
- WiFiClient client = server.available();
+    WiFiClient client = server.available();
   if (!client) {
     return;
   }
@@ -137,6 +134,7 @@ void config_display(WiFiClient clientx) {
   Serial.println("-config_display-");
   clientx.println("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n");
   sxc = "";
+  String sxc;
   sxc += "<!DOCTYPE html />";
   sxc += "<html>";
   sxc += "<head>";
@@ -163,9 +161,8 @@ void config_display(WiFiClient clientx) {
   sxc += "input:focus ~ .bar:before, input:focus ~ .bar:after{width:50%;}";
   sxc += ".form button{background:white;border:1px solid #e0e0e0;padding:10px 100px;display:block;border-radius:6px;transition: all 300ms;position:relative;border-color:#00a8ff;color:#666666;text-align:center;left:50%;transform:translate(-50%, 0);cursor:pointer;} ";
   sxc += ".form button:hover{background: #2196f3;color:white;} ";
-  sxc += ".form{background:white;width:300px;max-width:302px;height:210px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);bottom:calc(100vh - (30vh + (38vw / 16 * 9) + 280px));}";
-  sxc += "@media screen and (max-height:520px){h1{font-size:25px;}}";
-  sxc += "@media screen and (max-height:400px){h1{font-size:16px;}}";
+  sxc += ".form{background:white;width:300px;max-width:302px;position:absolute;left:50%;top:50%;transform:translate(-50%, -50%);}";
+  sxc += "@media screen and (max-height:720px){.form{position:relative;top:100%;transform:translate(-50%, 0);}h3{position:relative}h1{font-size:30px;}}";
   sxc += "</style>";
   sxc += "</head>";
   clientx.println(sxc);
@@ -176,6 +173,8 @@ void config_display(WiFiClient clientx) {
   sxc += "<form id='form' method='POST' class='form'>";
   sxc += "<div class='group'><input id='ssid' onkeyup='chk()' name='ssid' type='text'><span class='bar'></span><label>SSID</label></div>";
   sxc += "<div class='group'><input id='pwd' onkeyup='chk()' name='password' type='password'><span class='bar'></span><label>Password</label></div>";
+  sxc += "<div class='group'><input id='name' onkeyup='chk()' name='name' type='text'><span class='bar'></span><label>Device name</label></div>";
+  sxc += "<div class='group'><input id='ip' onkeyup='chk()' name='ip_address' type='text'><span class='bar'></span><label>Server IP address</label></div>";
   sxc += "<br>";
   sxc += "<button type='submit'>Save</button></form>";
   sxc += "<script>";
@@ -183,14 +182,19 @@ void config_display(WiFiClient clientx) {
   sxc += "if(document.getElementById('ssid').value != ''){";
   sxc += "document.getElementById('ssid').classList.add('valid');";
   sxc += "}else{";
-  sxc += "document.getElementById('ssid').classList.remove('valid');";
-  sxc += "}";
+  sxc += "document.getElementById('ssid').classList.remove('valid');}";
   sxc += "if(document.getElementById('pwd').value != ''){";
   sxc += "document.getElementById('pwd').classList.add('valid');";
   sxc += "}else{";
-  sxc += "document.getElementById('pwd').classList.remove('valid');";
-  sxc += "}";
-  sxc += "}";
+  sxc += "document.getElementById('pwd').classList.remove('valid');}";
+  sxc += "if(document.getElementById('name').value != ''){";
+  sxc += "document.getElementById('name').classList.add('valid');";
+  sxc += "}else{";
+  sxc += "document.getElementById('name').classList.remove('valid');}";
+  sxc += "if(document.getElementById('ip').value != ''){";
+  sxc += "document.getElementById('ip').classList.add('valid');";
+  sxc += "}else{";
+  sxc += "document.getElementById('ip').classList.remove('valid');}}";
   sxc += "</script>";
   sxc += "</body>";
   sxc += "</html>";
@@ -220,12 +224,20 @@ void updateconf() {
   {
     EEPROM.write(32 + i, password_temp[i]);
   }
+  for (int i = 0; i < device_name_temp.length(); ++i)
+  {
+    EEPROM.write(96 + i, device_name_temp[i]);
+  }
+  for (int i = 0; i < server_ip_temp.length(); ++i)
+  {
+    EEPROM.write(128 + i, server_ip_temp[i]);
+  }
   EEPROM.commit();
   WiFi.mode(WIFI_STA);
   ESP.restart();
 }
 int reset(String params){
-  for (int i = 0; i < 96; ++i) {
+  for (int i = 0; i < 144; ++i) {
     EEPROM.write(i, 0);
   }
   EEPROM.commit();
@@ -272,6 +284,19 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
+  WiFiClient sync;
+  if (!sync.connect(server_ip, 80)) {
+    Serial.println("connection failed");
+  } else {
+    sync.print("GET /?config&name=" + String(device_name) + "&version=" + ver + "&ip_address=" + ipaddr + " HTTP/1.1\r\nHost: " + String(server_ip) + "\r\n\r\n");
+    String line = sync.readStringUntil('\r');
+    Serial.println(line);
+    if(line.indexOf("200 OK") > -1){
+      Serial.println("ok");
+    }
+    Serial.println("closing connection");
+    sync.stop();
+  }
   NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
     ntpEvent = event;
     syncEventTriggered = true;
