@@ -1,3 +1,4 @@
+#include <FS.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <aREST.h>
@@ -5,6 +6,7 @@
 #include <EEPROM.h>
 #include <TimeLib.h>
 #include <NtpClientLib.h>
+#include <ArduinoJson.h>
 WiFiClient espClient;
 WiFiServer serverc(80);
 WiFiServer server(80);
@@ -19,9 +21,10 @@ const char* device_name;
 String ssid_temp, password_temp, server_ip_temp, sxc, ipaddr, realTime, device_name_temp;
 boolean syncEventTriggered = false;
 NTPSyncEvent_t ntpEvent;
-
-String ver = "4.0.3";
-
+int previousMillis;
+int global_sensor_port = 13;
+String ver = "4.0.5";
+int filemode = 0;
 
 void setup() {
   pinMode(12, OUTPUT);
@@ -66,6 +69,7 @@ return;
 }
 
 void loop() {
+  
     if (servermode == true) {
     WiFiClient cli = serverc.available();
     printed = 0;
@@ -75,6 +79,7 @@ void loop() {
       const int datalen = req.length() + 1;
       char data[datalen];
       req.toCharArray(data, datalen);
+      
       char *leader = data;
       char *follower = leader;
       while (*leader) {
@@ -95,6 +100,7 @@ void loop() {
           follower++;
       }
       *follower = 0;
+      
       String req2(data);
       ssid_temp = req2;
       password_temp = req2;
@@ -116,20 +122,45 @@ void loop() {
     }
     return;
   } else {
+    
     realTime = NTP.getTimeDateString();
+    if(millis() - previousMillis > 10000) {
+    //Serial.println("triggered");
+    previousMillis = millis();
+    saveData((String)global_sensor_port, (String)digitalRead(global_sensor_port));
+    
+  }
     WiFiClient client = server.available();
   if (!client) {
     return;
   }
   while(!client.available()){
     delay(1);
+    
   }
-  rest.handle(client);
+  if(filemode){
+    Serial.println("FILEMODE!");
+    endFile(global_sensor_port);
+    sendFile(client, global_sensor_port);
+    refreshFile(global_sensor_port);
+    filemode = 0;
+  } else {
+    rest.handle(client);
   }
+  }
+  
 }
 int updater(String params) {
   //ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
-  ESPhttpUpdate.update("http://raw.githubusercontent.com/rtx04/esp8266/master/esp8266/esp8266.ino.generic.bin");
+  WiFiClient update_client;
+  const char* update_host = "raw.githubusercontent.com";
+  if(!update_client.connect(update_host, 80)){
+    Serial.println("Couldn't connect");
+    return 1;
+  }
+  auto ret = ESPhttpUpdate.update("http://raw.githubusercontent.com/rtx04/esp8266/master/esp8266/esp8266.ino.generic.bin");
+  Serial.println("Update failed: " + ((int)ret));
+  return 1;
 }
 void config_display(WiFiClient clientx) {
   Serial.println("-config_display-");
@@ -267,6 +298,7 @@ void normal_setup() {
   rest.function("restart", restart);
   rest.variable("ip", &ipaddr);
   rest.variable("time", &realTime);
+  rest.function("activate_filemode", activate_filemode);
   rest.set_id("rtx04");
   rest.set_name("esp8266");
   WiFi.begin(ssid, password);
@@ -292,6 +324,7 @@ void normal_setup() {
   NTP.begin("tempus2.gum.gov.pl", 1, true);
   NTP.setInterval(600);
   server.begin();
+  spiffs_init();
   WiFiClient sync;
   if (!sync.connect(server_ip, 80)) {
     Serial.println("connection failed");
@@ -306,4 +339,94 @@ void normal_setup() {
     sync.stop();
   }
   
+  previousMillis = millis();
+}
+void spiffs_init(){
+  SPIFFS.begin();
+  //if(SPIFFS.exists("/sensor_data.txt")){
+  //File fr = SPIFFS.open("/sensor_data.txt", "r");
+  //Serial.println("contents of /sensor_data.txt before clearing:\n");
+  //while(fr.available()){
+  //  Serial.print((char)fr.read());
+  // }
+  //fr.close();
+  //SPIFFS.remove("/sensor_data.txt");
+  //} 
+  //File new_file = SPIFFS.open("/sensor_data.txt", "w");
+  //StaticJsonBuffer<200> jsonBuffer;
+  //JsonObject& root = jsonBuffer.createObject();
+  //JsonArray& data = root.createNestedArray((String)global_sensor_port);
+  //data.add("test");
+  //root.printTo(new_file);
+  //new_file.close();
+  //previousMillis = millis();
+  File new_file = SPIFFS.open("/" + (String)global_sensor_port, "w");
+  new_file.print("{['test'");
+  new_file.close();
+}
+int endFile(int sensor_pin){
+  File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
+  fx.print("}");
+  fx.close();
+  return 0;
+}
+int refreshFile(int sensor_pin){
+  File fx = SPIFFS.open("/" + (String)sensor_pin, "w");
+  fx.print("{['test'");
+  fx.close();
+  return 0;
+}
+int activate_filemode(String params){
+  filemode = 1;
+  return 0;
+}
+int sendFile(WiFiClient client, int sensor_pin){
+  File fr = SPIFFS.open("/" + (String)sensor_pin, "r");
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
+  client.println("Connection: close");
+  client.print("Content-Length: ");
+  client.println((String)fr.size());
+  client.println();
+  while(fr.available()) {
+    char a = (char)fr.read();
+    client.print((String)a);
+    Serial.print((char)a);
+  }
+  fr.close();
+  client.stop();
+}
+int saveDataDeprecated(String sensor_pin, String sensor_value){
+  File fr2 = SPIFFS.open("/sensor_data.txt", "r");
+  size_t size = fr2.size();
+  if (size > 2048) {
+    Serial.println("Config file size is too large");
+    return 1;
+  }
+  std::unique_ptr<char[]> buf(new char[size]);
+  fr2.readBytes(buf.get(), size);
+  fr2.close();
+  StaticJsonBuffer<2048> jsonBuffer;
+  JsonObject& json = jsonBuffer.parseObject(buf.get());
+  File fx = SPIFFS.open("/sensor_data.txt", "w");
+  JsonArray& data = json[sensor_pin];
+  JsonArray& details = data.createNestedArray();
+  details.add(NTP.getTimeDateString());
+  details.add(sensor_value);
+  json.printTo(fx);
+  //json.printTo(Serial);
+  //fx.close();
+  //File fr = SPIFFS.open("/sensor_data.txt", "r");
+  Serial.println("size: " + (String)size);
+  //while(fr.available()){
+  //  Serial.print((char)fr.read());
+  //}
+  //fr.close();
+  return 0;
+}
+int saveData(String sensor_pin, String sensor_value){
+  File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
+  fx.print(",[\"" + NTP.getTimeDateString() + "\",\"" + sensor_value + "\"]");
+  fx.close();
+  return 0;
 }
