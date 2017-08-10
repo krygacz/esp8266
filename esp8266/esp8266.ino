@@ -20,7 +20,7 @@ String ssid_temp, password_temp, server_ip_temp, sxc, ipaddr, realTime, device_n
 boolean syncEventTriggered = false;
 NTPSyncEvent_t ntpEvent;
 
-String ver = "4.0.2";
+String ver = "4.0.3";
 
 
 void setup() {
@@ -128,7 +128,8 @@ void loop() {
   }
 }
 int updater(String params) {
-  ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
+  //ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
+  ESPhttpUpdate.update("http://raw.githubusercontent.com/rtx04/esp8266/master/esp8266/esp8266.ino.generic.bin");
 }
 void config_display(WiFiClient clientx) {
   Serial.println("-config_display-");
@@ -284,6 +285,13 @@ void normal_setup() {
   ipaddr = WiFi.localIP().toString();
   Serial.println("");
   Serial.println("WiFi connected with IP " + ipaddr);
+  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
+    ntpEvent = event;
+    syncEventTriggered = true;
+  });
+  NTP.begin("tempus2.gum.gov.pl", 1, true);
+  NTP.setInterval(600);
+  server.begin();
   WiFiClient sync;
   if (!sync.connect(server_ip, 80)) {
     Serial.println("connection failed");
@@ -297,11 +305,5 @@ void normal_setup() {
     Serial.println("closing connection");
     sync.stop();
   }
-  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
-    ntpEvent = event;
-    syncEventTriggered = true;
-  });
-  NTP.begin("tempus2.gum.gov.pl", 1, true);
-  NTP.setInterval(600);
-  server.begin();
+  
 }
