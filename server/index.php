@@ -83,8 +83,21 @@ for($x = 0;$x < $counter; $x++){
   $version = $boards[$x][2];
   $is_running = $boards[$x][3];
   $value = $boards[$x][4];
-  echo "name: $name version: $version ip address: $ip_address is_on: $is_running value: $value <br><br>";
+  $last_online = $boards[$x][5];
+  echo "name: $name version: $version ip address: $ip_address is_on: $is_running last_online: $last_online value: $value <br><br>";
 }
  ?>
+
+ <script>
+ function refresh(){
+   var req = new XMLHttpRequest();
+   req.onreadystatechange = function(){
+     location.reload();
+   }
+   req.open("GET", "boards.php", true);
+   req.send(null);
+ }
+ setInterval(refresh, 3000);
+ </script>
 </body>
 </html>
