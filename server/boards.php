@@ -89,6 +89,4 @@ while ($row = $result->fetch_row()) {
   }
   $counter = $counter + 1;
 }
-print_r($boards);
-
  ?>
