@@ -20,7 +20,7 @@ int global_sensor_port = 13;
 int log_interval = 10000;
 
 
-String ver = "4.1.5";
+String ver = "4.2.0";
 
 void setup() {
   Serial.begin(74880);
@@ -93,7 +93,7 @@ void spiffs_init(){
   // Initializes SPIFFS and creates text file to store sensor data
   SPIFFS.begin();
   File new_file = SPIFFS.open("/" + (String)global_sensor_port, "w");
-  new_file.print("{'" + (String)global_sensor_port + "'");
+  new_file.print("{\"data\":[[\"port\",\"" + (String)global_sensor_port + "\"]");
   new_file.close();
 }
 void rest_init(){
@@ -144,6 +144,7 @@ void send_config_request(){
 // Server methods
 
 void handle_server(){
+  // Handles server
   realTime = NTP.getTimeDateString();
   value = digitalRead(global_sensor_port);
   if(millis() - previousMillis > log_interval) {
@@ -158,12 +159,14 @@ void handle_server(){
     delay(1);
   }
   if(filemode){
-    Serial.println("FILEMODE!");
+    // FILEMODE - in this mode board sends saved data to server 
+    // instead of displaying JSON string from aREST
     endFile(global_sensor_port);
     sendFile(client, global_sensor_port);
     refreshFile(global_sensor_port);
     filemode = 0;
   } else {
+    // Normal mode - display JSON string
     rest.handle(client);
   }
 }
@@ -315,10 +318,10 @@ void config_display(WiFiClient clientx) {
 
 
 
-//EEPROM methods
+// EEPROM methods
 
 int eeprom_read(){
-  //Reads information stored in EEPROM: WiFi ssid & password, board name and server's IP address
+  // Reads information stored in EEPROM: WiFi ssid & password, board name and server's IP address
   EEPROM.begin(512);
   delay(10);
   for (int i = 0; i < 32; ++i) {
@@ -343,7 +346,7 @@ int eeprom_read(){
   }
 }
 void eeprom_write() {
-  //Writes configuration to EEPROM: WiFi ssid & password, board name and server's IP address
+  // Writes configuration to EEPROM: WiFi ssid & password, board name and server's IP address
   for (int i = 0; i < 144; ++i) {
     EEPROM.write(i, 0);
   }
@@ -370,7 +373,7 @@ void eeprom_write() {
   ESP.restart();
 }
 int reset(String params){
-  //Clears all information stored in EEPROM
+  // Clears all information stored in EEPROM
   for (int i = 0; i < 144; ++i) {
     EEPROM.write(i, 0);
   }
@@ -384,19 +387,19 @@ int reset(String params){
 
 
 
-//FLASH SAVE methods
+// FLASH SAVE methods
 
 int endFile(int sensor_pin){
   // Adds } to the end of text file so that it is correcctly interpreted by jSON
   File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
-  fx.print("}");
+  fx.print("]}");
   fx.close();
   return 0;
 }
 int refreshFile(int sensor_pin){
   // Clears all the information stored in text file
   File fx = SPIFFS.open("/" + (String)sensor_pin, "w");
-  fx.print("{'" + (String)sensor_pin + "'");
+  fx.print("{\"data\":[[\"port\",\"" + (String)global_sensor_port + "\"]");
   fx.close();
   return 0;
 }
@@ -414,19 +417,25 @@ int sendFile(WiFiClient client, int sensor_pin){
   client.print("Content-Length: ");
   client.println((String)fr.size());
   client.println();
+  byte clientBuf[64];
+  int clientCount = 0;
   while(fr.available()) {
-    char a = (char)fr.read();
-    client.print((String)a);
-    Serial.print((char)a);
+    clientBuf[clientCount] = fr.read();
+    clientCount++;
+    if(clientCount > 63) {
+      client.write((const uint8_t *)clientBuf,64);
+      clientCount = 0;
+    }
   }
+  if(clientCount > 0) client.write((const uint8_t *)clientBuf,clientCount);           
   fr.close();
-  client.stop();
+  client.stop();   
 }
 
 int saveData(String sensor_pin, String sensor_value){
-  //Saves current time & GPIO value to a text file
+  // Saves current time & GPIO value to a text file
   File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
-  fx.print(",\"" + NTP.getTimeDateString() + "\":\"" + sensor_value + "\"");
+  fx.print(",[\"" + NTP.getTimeDateString() + "\",\"" + sensor_value + "\"]");
   fx.close();
   return 0;
 }
@@ -437,7 +446,7 @@ int saveData(String sensor_pin, String sensor_value){
 
 
 
-//MISC methods
+// MISC methods
 
 int updater(String params) {
   // Updates software to newest version
@@ -465,87 +474,3 @@ void tcpCleanup() {
     tcp_abort(tcp_tw_pcbs);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//OLD_METHODS
-
-/*
-int saveDataDeprecated(String sensor_pin, String sensor_value){
-  File fr2 = SPIFFS.open("/sensor_data.txt", "r");
-  size_t size = fr2.size();
-  if (size > 2048) {
-    Serial.println("Config file size is too large");
-    return 1;
-  }
-  std::unique_ptr<char[]> buf(new char[size]);
-  fr2.readBytes(buf.get(), size);
-  fr2.close();
-  StaticJsonBuffer<2048> jsonBuffer;
-  JsonObject& json = jsonBuffer.parseObject(buf.get());
-  File fx = SPIFFS.open("/sensor_data.txt", "w");
-  JsonArray& data = json[sensor_pin];
-  JsonArray& details = data.createNestedArray();
-  details.add(NTP.getTimeDateString());
-  details.add(sensor_value);
-  json.printTo(fx);
-  //json.printTo(Serial);
-  //fx.close();
-  //File fr = SPIFFS.open("/sensor_data.txt", "r");
-  Serial.println("size: " + (String)size);
-  //while(fr.available()){
-  //  Serial.print((char)fr.read());
-  //}
-  //fr.close();
-  return 0;
-}
-
-void spiffs_init(){
-  SPIFFS.begin();
-  //if(SPIFFS.exists("/sensor_data.txt")){
-  //File fr = SPIFFS.open("/sensor_data.txt", "r");
-  //Serial.println("contents of /sensor_data.txt before clearing:\n");
-  //while(fr.available()){
-  //  Serial.print((char)fr.read());
-  // }
-  //fr.close();
-  //SPIFFS.remove("/sensor_data.txt");
-  //} 
-  //File new_file = SPIFFS.open("/sensor_data.txt", "w");
-  //StaticJsonBuffer<200> jsonBuffer;
-  //JsonObject& root = jsonBuffer.createObject();
-  //JsonArray& data = root.createNestedArray((String)global_sensor_port);
-  //data.add("test");
-  //root.printTo(new_file);
-  //new_file.close();
-  //previousMillis = millis();
-  File new_file = SPIFFS.open("/" + (String)global_sensor_port, "w");
-  new_file.print("{['test'");
-  new_file.close();
-}
-int updater(String params) {
-  // Updates software to newest version
-  //ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
-  WiFiClient update_client;
-  const char* update_host = "raw.githubusercontent.com";
-  if(!update_client.connect(update_host, 80)){
-    Serial.println("Couldn't connect");
-    return 1;
-  }
-  auto ret = ESPhttpUpdate.update("http://raw.githubusercontent.com/rtx04/esp8266/master/esp8266/esp8266.ino.generic.bin");
-  Serial.println("Update failed: " + ((int)ret));
-  return 1;
-}
-*/
-
