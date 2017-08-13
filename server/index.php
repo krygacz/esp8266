@@ -89,6 +89,10 @@ $conn->close();
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
+<<<<<<< HEAD
+=======
+          <a href="#sensor_data" class="mdl-layout__tab">Sensor data</a>
+>>>>>>> 604df0f376f7322cbcc9918355633441eab4242e
           <a href="#config" class="mdl-layout__tab">Configure</a>
         </div>
       </header>
@@ -98,12 +102,157 @@ $conn->close();
             <div id="p2" style="left:50%;transform:translate(-50%,5px);z-index:9999;width:100%" class="mdl-progress mdl-js-progress"></div>
           </section>
         </div>
+<<<<<<< HEAD
 
+=======
+        <div class="mdl-layout__tab-panel" id="sensor_data">
+          <div class="mdl-grid">
+            <div class="mdl-cell mdl-cell--3-col">
+              <div class="demo-card-square mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title mdl-card--expand">
+                  <h2 class="mdl-card__title-text">Board</h2>
+                </div>
+                <div class="mdl-card__supporting-text">
+                  <ul class="demo-list-control mdl-list">
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">
+                        <i class="material-icons mdl-list__item-icon">memory</i>
+                        Esp05
+                      </span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="mdl-card__actions mdl-card--border">
+                  <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">
+                    Select
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="mdl-cell mdl-cell--1-col">
+              <div class="demo-card-square mdl-card mdl-shadow--2dp">
+                <div class="mdl-card__title mdl-card--expand">
+                  <h2 class="mdl-card__title-text">Pin</h2>
+                </div>
+                <div class="mdl-card__supporting-text">
+                  <ul class="demo-list-control mdl-list">
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+                    <li class="mdl-list__item">
+                      <span class="mdl-list__item-primary-content">12</span>
+                      <span class="mdl-list__item-secondary-action">
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="list-checkbox-1">
+                          <input type="checkbox" id="list-checkbox-1" class="mdl-checkbox__input" checked />
+                        </label>
+                      </span>
+                    </li>
+
+                  </ul>
+                </div>
+                <div class="mdl-card__actions mdl-card--border">
+                  <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">
+                    Select
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="mdl-cell mdl-cell--8-col">4</div>
+        </div>
+
+    </div>
+>>>>>>> 604df0f376f7322cbcc9918355633441eab4242e
     <div class="mdl-layout__tab-panel" id="config">
       <section id="config-container" class="section--center mdl-grid mdl-grid--no-spacing" style="display: inline-block;left: 50%;position: relative;transform: translate(-50%,0);">
         <div class="demo-card-square mdl-card mdl-shadow--2dp">
           <div class="mdl-card__title mdl-card--expand">
+<<<<<<< HEAD
             <h2 class="mdl-card__title-text">Configure sensors</h2>
+=======
+            <h2 class="mdl-card__title-text">Board</h2>
+>>>>>>> 604df0f376f7322cbcc9918355633441eab4242e
           </div>
           <div class="mdl-card__supporting-text" style="padding-left:30px;padding-right:30px;padding-top:25px;">
             <form method="POST" id="config-form" action="#">
@@ -124,11 +273,19 @@ $conn->close();
             </form>
           </div>
           <div class="mdl-card__actions mdl-card--border">
+<<<<<<< HEAD
             <a onclick="encode()" class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Configure</a>
+=======
+            <a onclick="encode()" class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Send</a>
+>>>>>>> 604df0f376f7322cbcc9918355633441eab4242e
           </div>
         </div>
       </section>
     </div>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 604df0f376f7322cbcc9918355633441eab4242e
         <footer class="mdl-mini-footer">
           <div class="mdl-mini-footer__left-section">
             <div class="mdl-logo">More</div>
