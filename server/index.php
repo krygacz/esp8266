@@ -89,6 +89,7 @@ $conn->close();
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
+
           <a href="#config" class="mdl-layout__tab">Configure</a>
         </div>
       </header>
@@ -98,7 +99,6 @@ $conn->close();
             <div id="p2" style="left:50%;transform:translate(-50%,5px);z-index:9999;width:100%" class="mdl-progress mdl-js-progress"></div>
           </section>
         </div>
-
     <div class="mdl-layout__tab-panel" id="config">
       <section id="config-container" class="section--center mdl-grid mdl-grid--no-spacing" style="display: inline-block;left: 50%;position: relative;transform: translate(-50%,0);">
         <div class="demo-card-square mdl-card mdl-shadow--2dp">
