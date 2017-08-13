@@ -47,46 +47,12 @@ padding-top: 48px;
 }
 .main-body .mdl-card {
 height: auto;
-display: -webkit-flex;
-display: -ms-flexbox;
-display: flex;
--webkit-flex-direction: column;
-    -ms-flex-direction: column;
-        flex-direction: column;
+width:100%;
 }
 .main-body .mdl-card > * {
 height: auto;
 }
-.main-body .mdl-card .mdl-card__supporting-text {
-margin: 40px;
--webkit-flex-grow: 1;
-    -ms-flex-positive: 1;
-        flex-grow: 1;
-padding: 0;
-color: inherit;
-width: calc(100% - 80px);
-}
-.main-body.main-body .mdl-card__supporting-text h4 {
-margin-top: 0;
-margin-bottom: 20px;
-}
-.main-body .mdl-card__actions {
-margin: 0;
-padding: 4px 40px;
-color: inherit;
-}
-.main-body .mdl-card__actions a {
-color: #00BCD4;
-margin: 0;
-}
-.main-body .mdl-card__actions a:hover,
-.main-body .mdl-card__actions a:active {
-color: inherit;
-background-color: transparent;
-}
-.main-body .mdl-card__supporting-text + .mdl-card__actions {
-border-top: 1px solid rgba(0, 0, 0, 0.12);
-}
+
 .main-body #add {
 position: absolute;
 right: 40px;
@@ -171,9 +137,6 @@ margin: 0 -8px -8px -8px;
 .main-body section.section--center .section__text:not(:last-child) {
 border-bottom: 1px solid rgba(0,0,0,.13);
 }
-.main-body .mdl-card .mdl-card__supporting-text > h3:first-child {
-margin-bottom: 24px;
-}
 .main-body .mdl-layout__tab-panel:not(#overview) {
 background-color: white;
 }
@@ -213,7 +176,7 @@ display: block;
   right:0;
 }
 .mdl-checkbox__tick-outline{
-  mask:none;
+  mask:none!important;
 }
 .auxbar{opacity:0;!important}
 .pinvisible{transition:300ms;opacity:0;}
@@ -222,4 +185,25 @@ table{left:50%;transform:translate(-50%,0)!important}
 :root .mdl-snackbar{
   z-index:999999999!important;
   display:block!important;
+}
+#boards, #sensor_data, #config{
+  height: calc(100% - 156px);
+}
+.demo-card-square{width:100%;}
+.mdl-cell--2-col{
+  min-width:180px;
+  max-width:220px;
+}
+.mdl-cell--3-col{
+  min-width:250px;
+}
+.demo-card-square > .mdl-card__title {
+color: #fff;
+background:
+url('../assets/demos/dog.png') bottom right 15% no-repeat #46B6AC;
+}
+.mdl-grid{
+  position:relative;
+  left:50%;
+  transform:translate(-50%,0);
 }
