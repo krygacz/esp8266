@@ -69,7 +69,7 @@ function timeSince(date) {
   if (interval >= 1) {
     return interval + " min ago";
   }
-  if(seconds < 4) {
+  if(seconds < 5) {
     return "now";
   }
   return Math.floor(seconds) + " s ago";
@@ -167,5 +167,30 @@ function reload(addr){
   var xmlHttp = new XMLHttpRequest();
 xmlHttp.open( "GET", theUrl, true );
 xmlHttp.send( null );
+}
+function toint(string){
+  var myArray = string.split(",");
+for(var i=0; i<myArray.length; i++) {
+  myArray[i] = parseInt(myArray[i], 10);
+}
+return myArray;
+}
+function encode(){
+  var name = document.getElementById('config-name').value;
+  var sensor_ports = document.getElementById('config-ports').value;
+  var sensor_ports_critical = document.getElementById('config-ports-critical').value;
+  var obj = {
+    "config":{
+      "sensor_ports":toint(sensor_ports),
+      "critical_sensor_ports":toint(sensor_ports_critical)
+    }
+  };
+  var theUrl = "functions.php?sensor_config&name=" + name;
+  var xmlHttp = new XMLHttpRequest();
+xmlHttp.open( "POST", theUrl, true );
+xmlHttp.onload = function(){
+}
+xmlHttp.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+xmlHttp.send( JSON.stringify(obj) );
 }
 refresh();
