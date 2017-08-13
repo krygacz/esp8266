@@ -29,7 +29,7 @@ while ($row = $result->fetch_row()) {
   );
   $ctx2 = stream_context_create(array(
     'http' => array(
-        'timeout' => 2
+        'timeout' => 5
         )
     )
   );
@@ -115,6 +115,31 @@ if(isset($_GET['reload'])){
     }
 
   }
+}
+if(isset($_GET['sensor_config'])){
+  $name = $_GET['name'];
+    $stmt = $conn->stmt_init();
+    $stmt->prepare("SELECT ip_address FROM esp8266 WHERE name = ?");
+    if(!$stmt){
+      die("fail: " . $conn->error);
+    }
+    $stmt->bind_param("s", $name);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+    $ctx1 = stream_context_create(array(
+      'http' => array(
+          'timeout' => 1
+          )
+      )
+    );
+    while ($row = $result->fetch_row()) {
+      echo "proc";
+      $y = file_get_contents("http://" . $row[0] . "/sensor_config?params=" . stripslashes(file_get_contents("php://input")), 0, $ctx1);
+      echo "http://" . $row[0] . "/sensor_config?params=" . stripslashes(file_get_contents("php://input"));
+    }
+
+
 }
 $conn->close();
  ?>
