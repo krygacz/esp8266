@@ -6,21 +6,21 @@
 #include <EEPROM.h> // For reading / saving configuration to EEPROM
 #include <TimeLib.h> // For NtpClientLib.h
 #include <NtpClientLib.h> // For synchronization with NTP (time server)
-#include <ArduinoJson.h> // For encoding / decoding JSON stuff
+#include <ArduinoJson.h> // For decoding JSON stuff
 WiFiClient espClient;
 WiFiServer serverc(80);
 WiFiServer server(80);
 IPAddress apIP(192, 168, 4, 1);
 aREST rest = aREST();
 boolean printed, syncEventTriggered, configmode;
-String ssid, password, device_name, server_ip, sxc, ipaddr, realTime;
+String ssid, password, device_name, server_ip, sxc, ipaddr, realTime, global_sensor_value;
 NTPSyncEvent_t ntpEvent;
 int previousMillis, filemode, value;
 int global_sensor_port = 13;
 int log_interval = 10000;
 
 
-String ver = "4.2.0";
+String ver = "4.3.4";
 
 void setup() {
   Serial.begin(74880);
@@ -32,6 +32,7 @@ void setup() {
     send_config_request();
     server.begin();
     previousMillis = millis();
+    load_sensor_config();
     Serial.println("Initialization done\n\nready");
   } else {
     activate_config_mode();
@@ -93,7 +94,7 @@ void spiffs_init(){
   // Initializes SPIFFS and creates text file to store sensor data
   SPIFFS.begin();
   File new_file = SPIFFS.open("/" + (String)global_sensor_port, "w");
-  new_file.print("{\"data\":[[\"port\",\"" + (String)global_sensor_port + "\"]");
+  new_file.print("{\"data\":[[]");
   new_file.close();
 }
 void rest_init(){
@@ -102,9 +103,10 @@ void rest_init(){
   rest.function("update", updater);
   rest.function("reset_eeprom", reset);
   rest.function("restart", restart);
+  rest.function("sensor_config", save_sensor_config);
   rest.variable("ip", &ipaddr);
   rest.variable("time", &realTime);
-  rest.variable("value", &value);
+  rest.variable("value", &global_sensor_value);
   rest.function("activate_filemode", activate_filemode);
   rest.set_id("rtx04");
   rest.set_name("esp8266");
@@ -399,7 +401,7 @@ int endFile(int sensor_pin){
 int refreshFile(int sensor_pin){
   // Clears all the information stored in text file
   File fx = SPIFFS.open("/" + (String)sensor_pin, "w");
-  fx.print("{\"data\":[[\"port\",\"" + (String)global_sensor_port + "\"]");
+  fx.print("{\"data\":[[]");
   fx.close();
   return 0;
 }
@@ -417,13 +419,13 @@ int sendFile(WiFiClient client, int sensor_pin){
   client.print("Content-Length: ");
   client.println((String)fr.size());
   client.println();
-  byte clientBuf[64];
+  byte clientBuf[256];
   int clientCount = 0;
   while(fr.available()) {
     clientBuf[clientCount] = fr.read();
     clientCount++;
-    if(clientCount > 63) {
-      client.write((const uint8_t *)clientBuf,64);
+    if(clientCount > 255) {
+      client.write((const uint8_t *)clientBuf,256);
       clientCount = 0;
     }
   }
@@ -434,9 +436,44 @@ int sendFile(WiFiClient client, int sensor_pin){
 
 int saveData(String sensor_pin, String sensor_value){
   // Saves current time & GPIO value to a text file
-  File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
-  fx.print(",[\"" + NTP.getTimeDateString() + "\",\"" + sensor_value + "\"]");
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return 1;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return 1;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  StaticJsonBuffer<100> jsonBuffer2;
+  JsonObject& new_object = jsonBuffer.createObject();
+  StaticJsonBuffer<100> jsonBuffer3;
+  JsonObject& new_object2 = jsonBuffer.createObject();
+  for(int v = 0;v < sensor_ports.size();v++){
+    new_object2[String((const char*)sensor_ports[v])] = digitalRead((int)sensor_ports[v]);
+  }
+  /*
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    Serial.println("Critical sensor on port " + String((const char*)critical_sensor_ports[v]));
+    pinMode((int)critical_sensor_ports[v], INPUT);
+  }*/
   fx.close();
+  new_object[NTP.getTimeDateString()] = new_object2;
+  File fx2 = SPIFFS.open("/" + (String)sensor_pin, "a");
+  fx2.print(",");
+  new_object.printTo(fx2);
+  fx2.close();
+  String helper;
+  new_object2.printTo(helper);
+  new_object[NTP.getTimeDateString()] = helper;
+  global_sensor_value = "";
+  new_object[NTP.getTimeDateString()].printTo(global_sensor_value);
+  global_sensor_value.remove(global_sensor_value.length() - 1, 1);
+  global_sensor_value.remove(0,1);
   return 0;
 }
 
@@ -446,11 +483,108 @@ int saveData(String sensor_pin, String sensor_value){
 
 
 
+
+// SENSOR methods
+
+int save_sensor_config(String params){
+  // Saves sensor configuration file
+  const int datalen = params.length() + 1;
+  char data[datalen];
+    // Processes data from POST request (eg. changes '%20' to ' ')
+  params.toCharArray(data, datalen);
+  char *leader = data;
+  char *follower = leader;
+  while (*leader) {
+    if (*leader == '%') {
+        leader++;
+        char high = *leader;
+        leader++;
+        char low = *leader;
+        if (high > 0x39) high -= 7;
+        high &= 0x0f;
+        if (low > 0x39) low -= 7;
+        low &= 0x0f;
+        *follower = (high << 4) | low;
+    } else {
+        *follower = *leader;
+    }
+    leader++;
+    follower++;
+  }
+  *follower = 0;
+  String converted(data);
+  Serial.print(converted);
+  File fx = SPIFFS.open("/sensor_config.json", "w");
+  fx.print(converted);
+  fx.close();
+  return 5;
+}
+void load_sensor_config(){
+  // Loads sensor configuration file and configures ports
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  for(int v = 0;v < sensor_ports.size();v++){
+    Serial.println("Sensor on port " + String((const char*)sensor_ports[v]));
+    Serial.println("As number: " + String((int)sensor_ports[v]));
+    pinMode((int)sensor_ports[v], INPUT);
+  }
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    Serial.println("Critical sensor on port " + String((const char*)critical_sensor_ports[v]));
+    pinMode((int)critical_sensor_ports[v], INPUT);
+  }
+  fx.close();
+}
+
+
+
+
+
+
 // MISC methods
+
 
 int updater(String params) {
   // Updates software to newest version
-  ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
+  Serial.println("Updating from http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
+  t_httpUpdate_return ret = ESPhttpUpdate.update("http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
+int vn = 0;
+    while(vn == 0){
+    switch(ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+            Serial.println();
+            Serial.println();
+            Serial.println();
+            vn = 1;
+            break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("HTTP_UPDATE_NO_UPDATES");
+            Serial.println();
+            Serial.println();
+            vn = 1;
+            break;
+
+        case HTTP_UPDATE_OK:
+            Serial.println("HTTP_UPDATE_OK");
+            Serial.println();
+            Serial.println();
+            Serial.println();
+            vn = 1;
+            break;
+    }
+    }
 }
 int restart(String params){
   // Restarts the board
