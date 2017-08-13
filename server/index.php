@@ -89,7 +89,6 @@ $conn->close();
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
-
           <a href="#config" class="mdl-layout__tab">Configure</a>
         </div>
       </header>
