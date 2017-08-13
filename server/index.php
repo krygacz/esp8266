@@ -89,10 +89,7 @@ $conn->close();
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
-          <a href="#features" class="mdl-layout__tab">Features</a>
-          <a href="#features" class="mdl-layout__tab">Details</a>
-          <a href="#features" class="mdl-layout__tab">Technology</a>
-          <a href="#features" class="mdl-layout__tab">FAQ</a>
+          <a href="#config" class="mdl-layout__tab">Configure</a>
         </div>
       </header>
       <main class="mdl-layout__content">
@@ -101,15 +98,42 @@ $conn->close();
             <div id="p2" style="left:50%;transform:translate(-50%,5px);z-index:9999;width:100%" class="mdl-progress mdl-js-progress"></div>
           </section>
         </div>
-        <footer class="mdl-mega-footer">
-          <div class="mdl-mega-footer--bottom-section">
-            <div class="mdl-logo">
-              More:
-            </div>
-            <ul class="mdl-mega-footer--link-list">
+
+    <div class="mdl-layout__tab-panel" id="config">
+      <section id="config-container" class="section--center mdl-grid mdl-grid--no-spacing" style="display: inline-block;left: 50%;position: relative;transform: translate(-50%,0);">
+        <div class="demo-card-square mdl-card mdl-shadow--2dp">
+          <div class="mdl-card__title mdl-card--expand">
+            <h2 class="mdl-card__title-text">Configure sensors</h2>
+          </div>
+          <div class="mdl-card__supporting-text" style="padding-left:30px;padding-right:30px;padding-top:25px;">
+            <form method="POST" id="config-form" action="#">
+              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                <input class="mdl-textfield__input" type="text" id="config-name">
+                  <label class="mdl-textfield__label" for="config-name">Board name</label>
+              </div>
+              <br>
+              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                <input class="mdl-textfield__input" type="text" id="config-ports">
+                  <label class="mdl-textfield__label" for="config-ports">Sensor pins</label>
+              </div>
+              <br>
+              <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                <input class="mdl-textfield__input" type="text" id="config-ports-critical">
+                  <label class="mdl-textfield__label" for="config-ports-critical">Critical sensor pins</label>
+              </div>
+            </form>
+          </div>
+          <div class="mdl-card__actions mdl-card--border">
+            <a onclick="encode()" class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect">Configure</a>
+          </div>
+        </div>
+      </section>
+    </div>
+        <footer class="mdl-mini-footer">
+          <div class="mdl-mini-footer__left-section">
+            <div class="mdl-logo">More</div>
+            <ul class="mdl-mini-footer__link-list">
               <li><a href="https://github.com/rtx04/esp8266">View on GitHub</a></li>
-              <li><a href="#">test</a></li>
-              <li><a href="#">test</a></li>
             </ul>
           </div>
         </footer>
