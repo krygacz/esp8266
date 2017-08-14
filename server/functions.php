@@ -38,13 +38,18 @@ while ($row = $result->fetch_row()) {
     $obj = json_decode($json, true);
     $conn = new mysqli($servername, $username, $password, $dbname);
     $query = "";
-    for($i = 1; $i < count($obj["data"]) ;$i++) {
-      $time = $obj["data"][$i][0];
-      $name = $row[0];
-      $port = $obj["data"][0][1];
-      $value = $obj["data"][$i][1];
-      $query .= "INSERT INTO data (time,value,name,port) VALUES (\"$time\", \"$value\", \"$name\", $port);";
-    }
+
+      foreach($obj["data"] as $datax){
+        foreach($datax['ports'] as $portx){
+          $time = $datax['time'];
+          $name = $row[0];
+          $port = $portx[0];
+          $value = $portx[1];
+          $query .= "INSERT INTO data (time,value,name,port) VALUES (\"$time\", \"$value\", \"$name\", $port);";
+        }
+      }
+
+
     $multi_result = mysqli_multi_query($conn, $query);
   } else {
     die("Couldn't get data");
@@ -140,6 +145,9 @@ if(isset($_GET['sensor_config'])){
     }
 
 
+}
+if(isset($_GET['notify'])){
+  @$y = file_get_contents("http://esp.aplikacjejs.fc.pl/?notify&title=Critical+Sensor+value+changed&content=Sensor+on+GPIO" . $_GET['port'] . "+outputs+value+" . $_GET['value'], 0, $ctx1);
 }
 $conn->close();
  ?>
