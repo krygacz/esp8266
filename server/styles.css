@@ -67,9 +67,6 @@ margin-bottom: 48px;
 .main-body .mdl-layout__content {
 background-color:white;
 }
-.main-body section.section--center {
-max-width: 860px;
-}
 .main-body #features section.section--center {
 max-width: 620px;
 }
@@ -186,8 +183,9 @@ table{left:50%;transform:translate(-50%,0)!important}
   z-index:999999999!important;
   display:block!important;
 }
-#boards, #sensor_data, #config{
-  height: calc(100% - 156px);
+#boards, #notifications, #config{
+  height: calc(100vh - 356px);
+  box-sizing:border-box;
 }
 .demo-card-square{width:100%;}
 .mdl-cell--2-col{
@@ -206,4 +204,23 @@ url('../assets/demos/dog.png') bottom right 15% no-repeat #46B6AC;
   position:relative;
   left:50%;
   transform:translate(-50%,0);
+}
+.mdl-button{
+  border-radius:0;
+}
+#update{
+  border-bottom-left-radius: 3px;
+}
+#remove{
+  border-bottom-right-radius: 3px;
+}
+.notifications-info.mdl-card {
+  font-weight:100;
+  width: 360px;
+  height: 320px;
+}
+.notifications-info > .mdl-card__title {
+  color: #fff;
+  background:
+    url('https://raw.githubusercontent.com/google/material-design-icons/master/social/drawable-xxxhdpi/ic_notifications_white_48dp.png') bottom right -96px no-repeat #46B6AC;
 }
