@@ -15,12 +15,13 @@ aREST rest = aREST();
 boolean printed, syncEventTriggered, configmode;
 String ssid, password, device_name, server_ip, sxc, ipaddr, realTime, global_sensor_value;
 NTPSyncEvent_t ntpEvent;
-int previousMillis, filemode, value;
+int previousMillis, filemode, value, previousMillis2;
 int global_sensor_port = 13;
 int log_interval = 10000;
+int last_critical_sensor_data[20][2];
 
 
-String ver = "4.3.4";
+String ver = "4.4.3";
 
 void setup() {
   Serial.begin(74880);
@@ -149,6 +150,10 @@ void handle_server(){
   // Handles server
   realTime = NTP.getTimeDateString();
   value = digitalRead(global_sensor_port);
+  if(millis() - previousMillis2 > 1000){
+    previousMillis2 = millis();
+    sensor_update();
+  }
   if(millis() - previousMillis > log_interval) {
     previousMillis = millis();
     saveData((String)global_sensor_port, (String)digitalRead(global_sensor_port));
@@ -451,29 +456,24 @@ int saveData(String sensor_pin, String sensor_value){
   JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
   StaticJsonBuffer<100> jsonBuffer2;
   JsonObject& new_object = jsonBuffer.createObject();
-  StaticJsonBuffer<100> jsonBuffer3;
-  JsonObject& new_object2 = jsonBuffer.createObject();
+  new_object["time"] = NTP.getTimeDateString();
+  JsonArray& arrayj = new_object.createNestedArray("ports");
   for(int v = 0;v < sensor_ports.size();v++){
-    new_object2[String((const char*)sensor_ports[v])] = digitalRead((int)sensor_ports[v]);
+    JsonArray& arrayl = arrayj.createNestedArray();
+    arrayl.add(String((const char*)sensor_ports[v]));
+    arrayl.add(digitalRead((int)sensor_ports[v]));
   }
-  /*
+  JsonArray& arrayjj = new_object.createNestedArray("critical_ports");
   for(int v = 0;v < critical_sensor_ports.size();v++){
-    Serial.println("Critical sensor on port " + String((const char*)critical_sensor_ports[v]));
-    pinMode((int)critical_sensor_ports[v], INPUT);
-  }*/
+    JsonArray& arrayl = arrayjj.createNestedArray();
+    arrayl.add(String((const char*)critical_sensor_ports[v]));
+    arrayl.add(digitalRead((int)critical_sensor_ports[v]));
+  }
   fx.close();
-  new_object[NTP.getTimeDateString()] = new_object2;
   File fx2 = SPIFFS.open("/" + (String)sensor_pin, "a");
   fx2.print(",");
   new_object.printTo(fx2);
   fx2.close();
-  String helper;
-  new_object2.printTo(helper);
-  new_object[NTP.getTimeDateString()] = helper;
-  global_sensor_value = "";
-  new_object[NTP.getTimeDateString()].printTo(global_sensor_value);
-  global_sensor_value.remove(global_sensor_value.length() - 1, 1);
-  global_sensor_value.remove(0,1);
   return 0;
 }
 
@@ -536,7 +536,6 @@ void load_sensor_config(){
   JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
   for(int v = 0;v < sensor_ports.size();v++){
     Serial.println("Sensor on port " + String((const char*)sensor_ports[v]));
-    Serial.println("As number: " + String((int)sensor_ports[v]));
     pinMode((int)sensor_ports[v], INPUT);
   }
   for(int v = 0;v < critical_sensor_ports.size();v++){
@@ -545,6 +544,55 @@ void load_sensor_config(){
   }
   fx.close();
 }
+void sensor_update(){
+  // Saves current time & GPIO value to a text file
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  fx.close();
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  StaticJsonBuffer<500> jsonBuffer2;
+  JsonObject& new_object = jsonBuffer2.createObject();
+  JsonArray& arrayj = new_object.createNestedArray("ports");
+  for(int v = 0;v < sensor_ports.size();v++){
+    JsonArray& arrayl = arrayj.createNestedArray();
+    arrayl.add(String((const char*)sensor_ports[v]));
+    arrayl.add(digitalRead((int)sensor_ports[v]));
+  }
+  JsonArray& arrayjj = new_object.createNestedArray("critical_ports");
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    JsonArray& arrayl = arrayjj.createNestedArray();
+    arrayl.add(String((const char*)critical_sensor_ports[v]));
+    arrayl.add(digitalRead((int)critical_sensor_ports[v]));
+      if(last_critical_sensor_data[v][1] != digitalRead(last_critical_sensor_data[v][0]) && last_critical_sensor_data[v][0] != 0){
+        Serial.println("CHANGE ON PORT " + (String)last_critical_sensor_data[v][0]);
+        HTTPClient http;
+        http.begin("http://" + (String)server_ip.c_str() + "/?notify&port=" + String((const char*)critical_sensor_ports[v]).toInt() + "&value=" + digitalRead((int)critical_sensor_ports[v])); 
+        http.GET();
+        http.end();
+      }
+    last_critical_sensor_data[v][0] = String((const char*)critical_sensor_ports[v]).toInt();
+    last_critical_sensor_data[v][1] = digitalRead((int)critical_sensor_ports[v]);
+  }
+ 
+  global_sensor_value = "";
+  //arrayjj.printTo(Serial);
+  //arrayj.printTo(Serial);
+  //new_object.printTo(Serial);
+  new_object.printTo(global_sensor_value);
+  global_sensor_value.replace("\"", "\\\"");
+}
+
+
 
 
 
@@ -566,6 +614,7 @@ int vn = 0;
             Serial.println();
             Serial.println();
             Serial.println();
+            ESPhttpUpdate.update("http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
             vn = 1;
             break;
 
