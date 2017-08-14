@@ -42,12 +42,15 @@ function refresh(){
 }
 var refreshing = setInterval(refresh, 3000);
 function timeSince(date) {
+  var table = document.getElementById("table");
   if(date == "not_in_sync"){
-    return "waiting for NTC...";
+    var gh = table.getElementsByClassName('running-indicator');
+    return "NTC sync...";
   }
   if(date == "err"){
     return "error";
   }
+
   var seconds = Math.floor((new Date() - date) / 1000);
   var interval = Math.floor(seconds / 31536000);
   if (interval >= 1) {
@@ -69,7 +72,7 @@ function timeSince(date) {
   if (interval >= 1) {
     return interval + " min ago";
   }
-  if(seconds < 5) {
+  if(seconds < 7) {
     return "now";
   }
   return Math.floor(seconds) + " s ago";
@@ -96,6 +99,21 @@ function time_refresh(){
     gh[i].innerHTML = timeSince(convert(gh[i].dataset.time));
   }
 }
+function convert_value(value){
+  var array = JSON.parse(value);
+  var ports = array.ports;
+
+  var critical_ports = array.critical_ports;
+  var output = "";
+  ports.forEach(function(el){
+      output += "<b>" + el[0] + "</b> " + el[1] + " <span style='opacity:0.3'>|</span> ";
+  });
+  critical_ports.forEach(function(el){
+      output += "<b style='color: #e53935'>" + el[0] + "</b> " + el[1] + " <span style='opacity:0.3'>|</span> ";
+  });
+  output = output.slice(0, -36);
+  return output;
+}
 function rf(){
   $.ajax({
   url: 'refresh.php',
@@ -105,11 +123,7 @@ function rf(){
       setInterval(time_refresh,1000);
       var table = document.createElement('table');
       table.innerHTML = response;
-      var gh = table.getElementsByClassName('last-online');
-      for(var i = 0;i < gh.length;i++){
-        var dat = gh[i].innerHTML;
-        gh[i].innerHTML = timeSince(convert(dat));
-      }
+
       table.className = "mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp";
       table.id = "table";
       componentHandler.upgradeElement(table);
@@ -131,6 +145,26 @@ function rf(){
       document.getElementById('info-container').appendChild(table);
       document.getElementById('info-container').appendChild(button);
       document.getElementById('info-container').appendChild(button2);
+      var gy = table.getElementsByTagName('tr');
+      for(var i = 0;i < gy.length;i++){
+        var lo = gy[i].getElementsByClassName('last-online');
+        try{
+        if(convert(lo[0].dataset.time) == "not_in_sync"){
+          var sv = gy[i].getElementsByClassName('running-indicator');
+          sv[0].innerHTML = "sync";
+        }
+      } catch(e){}
+      }
+      var gh = table.getElementsByClassName('last-online');
+      for(var i = 0;i < gh.length;i++){
+        var dat = gh[i].innerHTML;
+        gh[i].innerHTML = timeSince(convert(dat));
+      }
+      var gu = table.getElementsByClassName('sensor_value');
+      for(var i = 0;i < gu.length;i++){
+        gu[i].innerHTML = convert_value(gu[i].innerHTML);
+      }
+
   }
 });
 }
