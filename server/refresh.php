@@ -44,12 +44,12 @@ $conn->close();
     $last_online = $boards[$x][5];
     ?>
   <tr data-name="<?php echo "$name"; ?>">
-    <td><center><i class="material-icons md-36"><?php if($is_running == "1"){echo "network_wifi";}else{echo "signal_wifi_off";} ?></i></td>
+    <td><center><?php if($is_running == "1"){ ?><i style="color:#1e88e5" class="running-indicator material-icons md-36">network_wifi</i><?php }else { ?><i style="color:#b71c1c" class="material-icons md-36">signal_wifi_off</i><?php } ?></i></td>
     <td class="mdl-data-table__cell--non-numeric"><?php echo "$name"; ?></td>
     <td><?php echo "$version"; ?></td>
     <td><?php echo "$ip_address"; ?></td>
     <td class="last-online mdl-data-table__cell--non-numeric" data-time="<?php echo "$last_online"; ?>"><?php echo "$last_online"; ?></td>
-    <td><?php echo "$value"; ?></td>
+    <td class="sensor_value"><?php echo "$value"; ?></td>
     <td><button onclick="reload('<?php echo "$name"; ?>')" class="mdl-button mdl-js-button mdl-button--icon">
   <i class="material-icons">refresh</i>
 </button></td>
