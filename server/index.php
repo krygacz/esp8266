@@ -65,6 +65,11 @@ while ($row = $result->fetch_row()) {
 }
 $stmt->close();
 $conn->close();
+
+if(isset($_GET['notify'])){
+  echo "<script>alert('" . "functions.php?" . http_build_query($_GET) . "');</script>";
+    @$y = file_get_contents("http://localhost/functions.php?" . http_build_query($_GET), 0, $ctx1);
+}
 ?>
 
 <!DOCTYPE html>
@@ -89,7 +94,8 @@ $conn->close();
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
-          <a href="#config" class="mdl-layout__tab">Configure</a>
+          <a href="#config" class="mdl-layout__tab">Configure sensors</a>
+          <a href="#notifications" class="mdl-layout__tab">Notifications</a>
         </div>
       </header>
       <main class="mdl-layout__content">
@@ -127,6 +133,24 @@ $conn->close();
           </div>
         </div>
       </section>
+
+    </div>
+    <div class="mdl-layout__tab-panel" id="notifications">
+      <section id="config-container" class="section--center mdl-grid mdl-grid--no-spacing" style="display: inline-block;left: 50%;position: relative;transform: translate(-50%,0);">
+      <div class="demo-card-square notifications-info mdl-card mdl-shadow--2dp">
+        <div class="mdl-card__title mdl-card--expand">
+          <h2 class="mdl-card__title-text">Receive notifications</h2>
+        </div>
+        <div class="mdl-card__supporting-text">
+          To get notifications, click on the link below and allow sending notifications.<br>Currently works only in Chrome
+        </div>
+        <div class="mdl-card__actions mdl-card--border">
+          <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" href="http://esp.aplikacjejs.fc.pl/">
+            Get notifications
+          </a>
+        </div>
+      </div>
+    </section>
     </div>
         <footer class="mdl-mini-footer">
           <div class="mdl-mini-footer__left-section">
