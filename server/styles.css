@@ -184,7 +184,7 @@ table{left:50%;transform:translate(-50%,0)!important}
   display:block!important;
 }
 #boards, #notifications, #config{
-  height: calc(100vh - 356px);
+  height: calc(100vh - 308px);
   box-sizing:border-box;
 }
 .demo-card-square{width:100%;}
@@ -223,4 +223,10 @@ url('../assets/demos/dog.png') bottom right 15% no-repeat #46B6AC;
   color: #fff;
   background:
     url('https://raw.githubusercontent.com/google/material-design-icons/master/social/drawable-xxxhdpi/ic_notifications_white_48dp.png') bottom right -96px no-repeat #46B6AC;
+}
+.hspacer{
+  height:40px;
+}
+.mdl-layout__header-row h3 {
+  font-size:27px;
 }
