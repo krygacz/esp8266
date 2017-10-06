@@ -45,7 +45,7 @@ function timeSince(date) {
   var table = document.getElementById("table");
   if(date == "not_in_sync"){
     var gh = table.getElementsByClassName('running-indicator');
-    return "NTP sync...";
+    return "NTC sync...";
   }
   if(date == "err"){
     return "error";

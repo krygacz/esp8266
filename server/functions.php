@@ -38,9 +38,8 @@ while ($row = $result->fetch_row()) {
     $obj = json_decode($json, true);
     $conn = new mysqli($servername, $username, $password, $dbname);
     $query = "";
-if(@$obj["data"]){
+
       foreach($obj["data"] as $datax){
-        if(@$datax['ports']){
         foreach($datax['ports'] as $portx){
           $time = $datax['time'];
           $name = $row[0];
@@ -49,8 +48,6 @@ if(@$obj["data"]){
           $query .= "INSERT INTO data (time,value,name,port) VALUES (\"$time\", \"$value\", \"$name\", $port);";
         }
       }
-      }
-    }
 
 
     $multi_result = mysqli_multi_query($conn, $query);

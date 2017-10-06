@@ -1,5 +1,71 @@
 <?php
-require "add_board.php";
+$servername = "localhost:3306";
+$username = "root";
+$password = "";
+$dbname = "esp8266";
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+   die("Connection failed: " . $conn->connect_error);
+}
+if(isset($_GET['config'])){
+  $stmt = $conn->stmt_init();
+  $stmt->prepare("SELECT * FROM esp8266 WHERE name = ?");
+  if(!$stmt){
+    die("fail: " . $conn->error);
+  }
+  $stmt->bind_param("s", $_GET['name']);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $stmt->close();
+  if ($row = $result->fetch_row()) {
+    $stmt = $conn->stmt_init();
+    $stmt->prepare("UPDATE esp8266 SET ip_address = ? WHERE name = ?");
+    if(!$stmt){
+      die("fail: " . $conn->error);
+    }
+    $stmt->bind_param("ss", $_GET['ip_address'], $_GET['name']);
+    $stmt->execute();
+    $stmt->close();
+  } else {
+    $stmt = $conn->stmt_init();
+    $stmt->prepare("SELECT * FROM esp8266 WHERE ip_address = ?");
+    if(!$stmt){
+      die("fail: " . $conn->error);
+    }
+    $stmt->bind_param("s", $_GET['ip_address']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+    if ($row = $result->fetch_row()) {
+      echo "<script>alert('IP address must be unique');</script>";
+    } else {
+  $stmt = $conn->stmt_init();
+  $stmt->prepare("INSERT INTO esp8266 (name,ip_address,version) VALUES (?, ?, '<unknown>')");
+  if(!$stmt){
+    die("fail: " . $conn->error);
+  }
+  $stmt->bind_param("ss", $_GET['name'], $_GET['ip_address']);
+  $stmt->execute();
+  $stmt->close();
+}
+}
+}
+$stmt = $conn->stmt_init();
+$stmt->prepare("SELECT * FROM esp8266");
+if(!$stmt){
+  die("fail: " . $conn->error);
+}
+$stmt->execute();
+$result = $stmt->get_result();
+$counter = 0;
+$boards = null;
+while ($row = $result->fetch_row()) {
+  $boards[$counter] = $row;
+  $counter = $counter + 1;
+}
+$stmt->close();
+$conn->close();
+
 if(isset($_GET['notify'])){
   echo "<script>alert('" . "functions.php?" . http_build_query($_GET) . "');</script>";
     @$y = file_get_contents("http://localhost/functions.php?" . http_build_query($_GET), 0, $ctx1);
@@ -19,12 +85,12 @@ if(isset($_GET['notify'])){
 <body class="main-body mdl-color--grey-100 mdl-color-text--grey-700 mdl-base">
     <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
       <header class="mdl-layout__header mdl-layout__header--scroll mdl-color--primary">
-        <div class="mdl-layout--large-screen-only mdl-layout__header-row hspacer">
+        <div class="mdl-layout--large-screen-only mdl-layout__header-row">
         </div>
         <div class="mdl-layout--large-screen-only mdl-layout__header-row">
           <h3>ESP8266 Home Server</h3>
         </div>
-        <div class="mdl-layout--large-screen-only mdl-layout__header-row hspacer">
+        <div class="mdl-layout--large-screen-only mdl-layout__header-row">
         </div>
         <div class="mdl-layout__tab-bar mdl-js-ripple-effect mdl-color--primary-dark">
           <a href="#boards" class="mdl-layout__tab is-active">Boards</a>
