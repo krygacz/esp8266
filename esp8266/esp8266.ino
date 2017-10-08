@@ -21,7 +21,7 @@ int log_interval = 10000;
 int last_critical_sensor_data[20][2];
 
 
-String ver = "4.4.3";
+String ver = "4.4.4";
 
 void setup() {
   Serial.begin(74880);
@@ -576,7 +576,7 @@ void sensor_update(){
       if(last_critical_sensor_data[v][1] != digitalRead(last_critical_sensor_data[v][0]) && last_critical_sensor_data[v][0] != 0){
         Serial.println("CHANGE ON PORT " + (String)last_critical_sensor_data[v][0]);
         HTTPClient http;
-        http.begin("http://" + (String)server_ip.c_str() + "/?notify&port=" + String((const char*)critical_sensor_ports[v]).toInt() + "&value=" + digitalRead((int)critical_sensor_ports[v])); 
+        http.begin("http://" + (String)server_ip.c_str() + "/?notify&ip=" + ipaddr + "&port=" + String((const char*)critical_sensor_ports[v]).toInt() + "&value=" + digitalRead((int)critical_sensor_ports[v])); 
         http.GET();
         http.end();
       }

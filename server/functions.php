@@ -146,8 +146,32 @@ if(isset($_GET['sensor_config'])){
 
 
 }
-if(isset($_GET['notify'])){
-  @$y = file_get_contents("http://esp.aplikacjejs.fc.pl/?notify&title=Critical+Sensor+value+changed&content=Sensor+on+GPIO" . $_GET['port'] . "+outputs+value+" . $_GET['value'], 0, $ctx1);
+if(isset($_GET['notify']) && isset($_GET['ip']) && isset($_GET['port']) && isset($_GET['value'])){
+  $board_name = "";
+  $board_port = $_GET['port'];
+  $board_value = $_GET['value'];
+  $stmt = $conn->stmt_init();
+  $stmt->prepare("SELECT name FROM esp8266 WHERE ip_address = ?");
+  if(!$stmt){
+    die("fail: " . $conn->error);
+  }
+  $stmt->bind_param("s", $_GET['ip']);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $stmt->close();
+  $ctx1 = stream_context_create(array(
+    'http' => array(
+        'timeout' => 1
+        )
+    )
+  );
+  while ($row = $result->fetch_row()) {
+    $board_name = $row[0];
+  }
+  $notification_title = urlencode("$board_name: Critical sensor value changed");
+  $notification_body = urlencode("Sensor on port $board_port outputs $board_value");
+  $notify_url = "http://esp.aplikacjejs.fc.pl/?notify&title=$notification_title&content=$notification_body";
+  @$y = file_get_contents($notify_url, 0, $ctx1);
 }
 $conn->close();
  ?>
