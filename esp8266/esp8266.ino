@@ -1,140 +1,258 @@
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-#include <aREST.h>
-#include <ESP8266httpUpdate.h>
-#include <EEPROM.h>
-#include <TimeLib.h>
-#include <NtpClientLib.h>
+#include "lwip/tcp_impl.h" // Library needed for tcpCleanup() method
+#include <FS.h> // For SPIFFS - accessing flash memory
+#include <ESP8266WiFi.h> // Standard library for WiFi
+#include <aREST.h> // For REST API
+#include <ESP8266httpUpdate.h> // For OTA updates
+#include <EEPROM.h> // For reading / saving configuration to EEPROM
+#include <TimeLib.h> // For NtpClientLib.h
+#include <NtpClientLib.h> // For synchronization with NTP (time server)
+#include <ArduinoJson.h> // For decoding JSON stuff
 WiFiClient espClient;
 WiFiServer serverc(80);
 WiFiServer server(80);
 IPAddress apIP(192, 168, 4, 1);
 aREST rest = aREST();
-boolean servermode = false;
-boolean printed;
-const char* ssid;
-const char* password;
-const char* server_ip;
-const char* device_name;
-String ssid_temp, password_temp, server_ip_temp, sxc, ipaddr, realTime, device_name_temp;
-boolean syncEventTriggered = false;
+boolean printed, syncEventTriggered, configmode;
+String ssid, password, device_name, server_ip, sxc, ipaddr, realTime, global_sensor_value;
 NTPSyncEvent_t ntpEvent;
+int previousMillis, filemode, value, previousMillis2;
+int global_sensor_port = 13;
+int log_interval = 10000;
+int last_critical_sensor_data[20][2];
 
-String ver = "4.0.2";
 
+String ver = "4.4.4";
 
 void setup() {
-  pinMode(12, OUTPUT);
-  pinMode(13, OUTPUT);
-  ESP.eraseConfig();
   Serial.begin(74880);
-  Serial.println("");
-  Serial.println("-setup-");
-  EEPROM.begin(512);
-  //reset("none");
-  delay(10);
-  String ssid_saved, password_saved, server_ip_saved, device_name_saved;
-  for (int i = 0; i < 32; ++i)
-  {
-    ssid_saved += char(EEPROM.read(i));
-  }
-  for (int i = 32; i < 96; ++i)
-  {
-    password_saved += char(EEPROM.read(i));
-  }
-  for (int i = 96; i < 128; ++i)
-  {
-    device_name_saved += char(EEPROM.read(i));
-  }
-  for (int i = 128; i < 144; ++i)
-  {
-    server_ip_saved += char(EEPROM.read(i));
-  }
-  if ( ssid_saved == "" || password_saved == "" || device_name == "" || server_ip_saved == "") {
-    Serial.println("");
-    Serial.println("No saved configuration or configuration incomplete, switching to server_mode");
-    wifi_config();
-    return;
+  if(eeprom_read()){
+    wifi_init();
+    rest_init();
+    ntp_init();
+    spiffs_init();
+    send_config_request();
+    server.begin();
+    previousMillis = millis();
+    load_sensor_config();
+    Serial.println("Initialization done\n\nready");
   } else {
-    ssid = ssid_saved.c_str();
-    password = password_saved.c_str();
-    server_ip = server_ip_saved.c_str();
-    device_name = device_name_saved.c_str();
-    normal_setup();
-return;
+    activate_config_mode();
+  }
+}
+void loop() {
+  if (configmode) {
+    config_mode();
+  } else {
+    handle_server();
   }
 }
 
-void loop() {
-    if (servermode == true) {
-    WiFiClient cli = serverc.available();
-    printed = 0;
-    if (!cli){return;}
-    String req = cli.readString();
-    if(req.indexOf("POST") != -1){
-      const int datalen = req.length() + 1;
-      char data[datalen];
-      req.toCharArray(data, datalen);
-      char *leader = data;
-      char *follower = leader;
-      while (*leader) {
-          if (*leader == '%') {
-              leader++;
-              char high = *leader;
-              leader++;
-              char low = *leader;
-              if (high > 0x39) high -= 7;
-              high &= 0x0f;
-              if (low > 0x39) low -= 7;
-              low &= 0x0f;
-              *follower = (high << 4) | low;
-          } else {
-              *follower = *leader;
-          }
-          leader++;
-          follower++;
-      }
-      *follower = 0;
-      String req2(data);
-      ssid_temp = req2;
-      password_temp = req2;
-      device_name_temp = req2;
-      server_ip_temp = req2;
-      ssid_temp = ssid_temp.substring(req2.indexOf("ssid=") + 5,req2.indexOf("&password=")); 
-      password_temp = password_temp.substring(req2.indexOf("&password=") + 10,req2.indexOf("&name="));
-      device_name_temp = device_name_temp.substring(req2.indexOf("&name=") + 6,req2.indexOf("&ip_address="));
-      server_ip_temp = server_ip_temp.substring(req2.indexOf("&ip_address=") + 12);
-      Serial.print("ssid: >" + ssid_temp + "< password: >" + password_temp + "< name: >" + device_name_temp + "< server_ip: >" + server_ip_temp + "<\n");
-      String s = "HTTP/1.1 200 OK\r\n";
-      s += "Content-Type: text/html\r\n\r\n";
-      s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script><h1>Rebooting...</h1><br><h2>You can now close this page</h2></html>";
-      cli.print(s);
-      printed = 1;
-      updateconf();
-    } else {
-          config_display(cli);
+
+
+
+
+
+
+
+/*
+######## Spaghetti ########
+*/
+
+
+
+// Config & init methods
+
+void wifi_init(){
+  // Connects to WiFi network
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid.c_str(), password.c_str());
+  Serial.println("Connecting to wifi with ssid='" + (String)ssid + "' password='" + (String)password + "'");
+  int counter = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    if(counter >= 20){
+      reset("none");
+      Serial.println("Couldn't connect with WiFi. Switching to configuration mode");
+      ESP.restart();
     }
-    return;
+    delay(1000);
+    Serial.println((String)(20 - counter) + " seconds left");
+    counter++;
+  }
+  ipaddr = WiFi.localIP().toString();
+  Serial.println("");
+  Serial.println("WiFi connected with IP " + ipaddr);
+}
+void ntp_init(){
+  // Connects to NTP server
+  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
+    ntpEvent = event;
+    syncEventTriggered = true;
+  });
+  NTP.begin("tempus2.gum.gov.pl", 1, true);
+  NTP.setInterval(600);
+}
+void spiffs_init(){
+  // Initializes SPIFFS and creates text file to store sensor data
+  SPIFFS.begin();
+  File new_file = SPIFFS.open("/" + (String)global_sensor_port, "w");
+  new_file.print("{\"data\":[[]");
+  new_file.close();
+}
+void rest_init(){
+  // Initializes and configures aREST
+  rest.variable("software_version", &ver);
+  rest.function("update", updater);
+  rest.function("reset_eeprom", reset);
+  rest.function("restart", restart);
+  rest.function("sensor_config", save_sensor_config);
+  rest.variable("ip", &ipaddr);
+  rest.variable("time", &realTime);
+  rest.variable("value", &global_sensor_value);
+  rest.function("activate_filemode", activate_filemode);
+  rest.set_id("rtx04");
+  rest.set_name("esp8266");
+}
+void send_config_request(){
+  // Sends GET request to server with name, software version & ip address information
+  tcpCleanup();
+  WiFiClient sync;
+  if (!sync.connect(server_ip.c_str(), 80)) {
+    Serial.println("connection failed with " + (String)server_ip.c_str());
   } else {
-    realTime = NTP.getTimeDateString();
-    WiFiClient client = server.available();
+    tcpCleanup();
+    char str1[150];
+    strcpy(str1, "GET /?config&name=");
+    strcat(str1, device_name.c_str());
+    strcat(str1, "&version=");
+    strcat(str1, ver.c_str());
+    strcat(str1, "&ip_address=");
+    strcat(str1, ipaddr.c_str());
+    strcat(str1, " HTTP/1.1\r\nHost: ");
+    strcat(str1, server_ip.c_str());
+    strcat(str1, "\r\n\r\n");
+    sync.print(str1);
+    String line = sync.readStringUntil('\r');
+    if(line.indexOf("200 OK") > -1){
+      Serial.println("GET request successful");
+    }
+    sync.stop();
+  }
+}
+
+
+
+
+
+
+// Server methods
+
+void handle_server(){
+  // Handles server
+  realTime = NTP.getTimeDateString();
+  value = digitalRead(global_sensor_port);
+  if(millis() - previousMillis2 > 1000){
+    previousMillis2 = millis();
+    sensor_update();
+  }
+  if(millis() - previousMillis > log_interval) {
+    previousMillis = millis();
+    saveData((String)global_sensor_port, (String)digitalRead(global_sensor_port));
+  }
+  WiFiClient client = server.available();
   if (!client) {
     return;
   }
   while(!client.available()){
     delay(1);
   }
-  rest.handle(client);
+  if(filemode){
+    // FILEMODE - in this mode board sends saved data to server 
+    // instead of displaying JSON string from aREST
+    endFile(global_sensor_port);
+    sendFile(client, global_sensor_port);
+    refreshFile(global_sensor_port);
+    filemode = 0;
+  } else {
+    // Normal mode - display JSON string
+    rest.handle(client);
   }
 }
-int updater(String params) {
-  ESPhttpUpdate.update("http://esp.aplikacjejs.fc.pl/esp.bin");
+
+
+
+
+
+
+
+// Config mode methods
+
+void activate_config_mode() {
+  // Initializes local configuration server
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+  WiFi.softAP("config_wifi");
+  serverc.begin();
+  configmode = true;
+  Serial.println("######### Configuration mode active #########");
+  Serial.println("Connect with 'config_wifi' to configure board");
+}
+void config_mode() {
+  // Handles local configuration server
+  WiFiClient cli = serverc.available();
+  printed = 0;
+  if (!cli){return;}
+  String req = cli.readString();
+  if(req.indexOf("POST") != -1){
+    const int datalen = req.length() + 1;
+    char data[datalen];
+    // Processes data from POST request (eg. changes '%20' to ' ')
+    req.toCharArray(data, datalen);
+    char *leader = data;
+    char *follower = leader;
+    while (*leader) {
+      if (*leader == '%') {
+          leader++;
+          char high = *leader;
+          leader++;
+          char low = *leader;
+          if (high > 0x39) high -= 7;
+          high &= 0x0f;
+          if (low > 0x39) low -= 7;
+          low &= 0x0f;
+          *follower = (high << 4) | low;
+      } else {
+          *follower = *leader;
+      }
+      leader++;
+      follower++;
+    }
+    *follower = 0;
+    String req2(data);
+    ssid = req2;
+    password = req2;
+    device_name = req2;
+    server_ip = req2;
+    ssid = ssid.substring(req2.indexOf("ssid=") + 5,req2.indexOf("&password=")); 
+    password = password.substring(req2.indexOf("&password=") + 10,req2.indexOf("&name="));
+    device_name = device_name.substring(req2.indexOf("&name=") + 6,req2.indexOf("&ip_address="));
+    server_ip = server_ip.substring(req2.indexOf("&ip_address=") + 12);
+    Serial.print("ssid: >" + ssid + "< password: >" + password + "< name: >" + device_name + "< server_ip: >" + server_ip + "<\n");
+    String s = "HTTP/1.1 200 OK\r\n";
+    s += "Content-Type: text/html\r\n\r\n";
+    s += "<!DOCTYPE HTML>\r\n<html><script>setTimeout(function(){window.location = \"http://192.168.4.1\";}, 2000);alert(\"Configuration saved!\");</script><h1>Rebooting...</h1><br><h2>You can now close this page</h2></html>";
+    cli.print(s);
+    printed = 1;
+    eeprom_write();
+  } else {
+    config_display(cli);
+  }
+  return;
 }
 void config_display(WiFiClient clientx) {
+  // Displays configuration page
   Serial.println("-config_display-");
   clientx.println("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n");
-  sxc = "";
-  String sxc;
+  String sxc = "";
   sxc += "<!DOCTYPE html />";
   sxc += "<html>";
   sxc += "<head>";
@@ -201,53 +319,329 @@ void config_display(WiFiClient clientx) {
   clientx.println(sxc);
 }
 
-void wifi_config() {
-  Serial.println("-wifi_config-");
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP("config_wifi");
-  serverc.begin();
-  servermode = true;
-  Serial.println("server mode");
+
+
+
+
+
+
+// EEPROM methods
+
+int eeprom_read(){
+  // Reads information stored in EEPROM: WiFi ssid & password, board name and server's IP address
+  EEPROM.begin(512);
+  delay(10);
+  for (int i = 0; i < 32; ++i) {
+    ssid += char(EEPROM.read(i));
+  }
+  for (int i = 32; i < 96; ++i) {
+    password += char(EEPROM.read(i));
+  }
+  for (int i = 96; i < 128; ++i) {
+    device_name += char(EEPROM.read(i));
+  }
+  for (int i = 128; i < 144; ++i) {
+    server_ip += char(EEPROM.read(i));
+  }
+  if (ssid == "" || password == "" || device_name == "" || server_ip == "") {
+    Serial.println("");
+    Serial.println("No saved configuration or configuration incomplete, switching to server_mode");
+    return 0;
+  } else {
+    Serial.println();
+    return 1;
+  }
 }
-void updateconf() {
-  Serial.println("-updateconf-");
-  Serial.println("UPDATE_CONF");
-  for (int i = 0; i < 96; ++i) {
+void eeprom_write() {
+  // Writes configuration to EEPROM: WiFi ssid & password, board name and server's IP address
+  for (int i = 0; i < 144; ++i) {
     EEPROM.write(i, 0);
   }
-  for (int i = 0; i < ssid_temp.length(); ++i)
-  {
-    EEPROM.write(i, ssid_temp[i]);
+  for (int i = 0; i < ssid.length(); ++i) {
+    EEPROM.write(i, ssid[i]);
+    Serial.print(ssid[i]);
   }
-  for (int i = 0; i < password_temp.length(); ++i)
-  {
-    EEPROM.write(32 + i, password_temp[i]);
+  for (int i = 0; i < password.length(); ++i) {
+    EEPROM.write(32 + i, password[i]);
+    Serial.print(password[i]);
   }
-  for (int i = 0; i < device_name_temp.length(); ++i)
-  {
-    EEPROM.write(96 + i, device_name_temp[i]);
+  for (int i = 0; i < device_name.length(); ++i) {
+    EEPROM.write(96 + i, device_name[i]);
+    Serial.print(device_name[i]);
   }
-  for (int i = 0; i < server_ip_temp.length(); ++i)
-  {
-    EEPROM.write(128 + i, server_ip_temp[i]);
+  for (int i = 0; i < server_ip.length(); ++i) {
+    EEPROM.write(128 + i, server_ip[i]);
+    Serial.print(server_ip[i]);
   }
+  Serial.println();
+  Serial.println();
   EEPROM.commit();
   WiFi.mode(WIFI_STA);
   ESP.restart();
 }
 int reset(String params){
+  // Clears all information stored in EEPROM
   for (int i = 0; i < 144; ++i) {
     EEPROM.write(i, 0);
   }
   EEPROM.commit();
   return 1;
 }
+
+
+
+
+
+
+
+// FLASH SAVE methods
+
+int endFile(int sensor_pin){
+  // Adds } to the end of text file so that it is correcctly interpreted by jSON
+  File fx = SPIFFS.open("/" + (String)sensor_pin, "a");
+  fx.print("]}");
+  fx.close();
+  return 0;
+}
+int refreshFile(int sensor_pin){
+  // Clears all the information stored in text file
+  File fx = SPIFFS.open("/" + (String)sensor_pin, "w");
+  fx.print("{\"data\":[[]");
+  fx.close();
+  return 0;
+}
+int activate_filemode(String params){
+  // Activates 'filemode', which sends information stored in text file to server (see sendFile())
+  filemode = 1;
+  return 0;
+}
+int sendFile(WiFiClient client, int sensor_pin){
+  // Sends information stored in text file to server
+  File fr = SPIFFS.open("/" + (String)sensor_pin, "r");
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
+  client.println("Connection: close");
+  client.print("Content-Length: ");
+  client.println((String)fr.size());
+  client.println();
+  byte clientBuf[256];
+  int clientCount = 0;
+  while(fr.available()) {
+    clientBuf[clientCount] = fr.read();
+    clientCount++;
+    if(clientCount > 255) {
+      client.write((const uint8_t *)clientBuf,256);
+      clientCount = 0;
+    }
+  }
+  if(clientCount > 0) client.write((const uint8_t *)clientBuf,clientCount);           
+  fr.close();
+  client.stop();   
+}
+
+int saveData(String sensor_pin, String sensor_value){
+  // Saves current time & GPIO value to a text file
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return 1;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return 1;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  StaticJsonBuffer<100> jsonBuffer2;
+  JsonObject& new_object = jsonBuffer.createObject();
+  new_object["time"] = NTP.getTimeDateString();
+  JsonArray& arrayj = new_object.createNestedArray("ports");
+  for(int v = 0;v < sensor_ports.size();v++){
+    JsonArray& arrayl = arrayj.createNestedArray();
+    arrayl.add(String((const char*)sensor_ports[v]));
+    arrayl.add(digitalRead((int)sensor_ports[v]));
+  }
+  JsonArray& arrayjj = new_object.createNestedArray("critical_ports");
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    JsonArray& arrayl = arrayjj.createNestedArray();
+    arrayl.add(String((const char*)critical_sensor_ports[v]));
+    arrayl.add(digitalRead((int)critical_sensor_ports[v]));
+  }
+  fx.close();
+  File fx2 = SPIFFS.open("/" + (String)sensor_pin, "a");
+  fx2.print(",");
+  new_object.printTo(fx2);
+  fx2.close();
+  return 0;
+}
+
+
+
+
+
+
+
+
+// SENSOR methods
+
+int save_sensor_config(String params){
+  // Saves sensor configuration file
+  const int datalen = params.length() + 1;
+  char data[datalen];
+    // Processes data from POST request (eg. changes '%20' to ' ')
+  params.toCharArray(data, datalen);
+  char *leader = data;
+  char *follower = leader;
+  while (*leader) {
+    if (*leader == '%') {
+        leader++;
+        char high = *leader;
+        leader++;
+        char low = *leader;
+        if (high > 0x39) high -= 7;
+        high &= 0x0f;
+        if (low > 0x39) low -= 7;
+        low &= 0x0f;
+        *follower = (high << 4) | low;
+    } else {
+        *follower = *leader;
+    }
+    leader++;
+    follower++;
+  }
+  *follower = 0;
+  String converted(data);
+  Serial.print(converted);
+  File fx = SPIFFS.open("/sensor_config.json", "w");
+  fx.print(converted);
+  fx.close();
+  return 5;
+}
+void load_sensor_config(){
+  // Loads sensor configuration file and configures ports
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  for(int v = 0;v < sensor_ports.size();v++){
+    Serial.println("Sensor on port " + String((const char*)sensor_ports[v]));
+    pinMode((int)sensor_ports[v], INPUT);
+  }
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    Serial.println("Critical sensor on port " + String((const char*)critical_sensor_ports[v]));
+    pinMode((int)critical_sensor_ports[v], INPUT);
+  }
+  fx.close();
+}
+void sensor_update(){
+  // Saves current time & GPIO value to a text file
+  File fx = SPIFFS.open("/sensor_config.json", "r");
+  if(!fx){
+    Serial.println("Couldn't find sensor configuration file");
+    return;
+  }
+  StaticJsonBuffer<500> jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(fx);
+  fx.close();
+  if (!root.success()) {
+    Serial.println("Couldn't parse sensor configuration file");
+    return;
+  }
+  JsonArray& sensor_ports = root["config"]["sensor_ports"];
+  JsonArray& critical_sensor_ports = root["config"]["critical_sensor_ports"];
+  StaticJsonBuffer<500> jsonBuffer2;
+  JsonObject& new_object = jsonBuffer2.createObject();
+  JsonArray& arrayj = new_object.createNestedArray("ports");
+  for(int v = 0;v < sensor_ports.size();v++){
+    JsonArray& arrayl = arrayj.createNestedArray();
+    arrayl.add(String((const char*)sensor_ports[v]));
+    arrayl.add(digitalRead((int)sensor_ports[v]));
+  }
+  JsonArray& arrayjj = new_object.createNestedArray("critical_ports");
+  for(int v = 0;v < critical_sensor_ports.size();v++){
+    JsonArray& arrayl = arrayjj.createNestedArray();
+    arrayl.add(String((const char*)critical_sensor_ports[v]));
+    arrayl.add(digitalRead((int)critical_sensor_ports[v]));
+      if(last_critical_sensor_data[v][1] != digitalRead(last_critical_sensor_data[v][0]) && last_critical_sensor_data[v][0] != 0){
+        Serial.println("CHANGE ON PORT " + (String)last_critical_sensor_data[v][0]);
+        HTTPClient http;
+        http.begin("http://" + (String)server_ip.c_str() + "/?notify&ip=" + ipaddr + "&port=" + String((const char*)critical_sensor_ports[v]).toInt() + "&value=" + digitalRead((int)critical_sensor_ports[v])); 
+        http.GET();
+        http.end();
+      }
+    last_critical_sensor_data[v][0] = String((const char*)critical_sensor_ports[v]).toInt();
+    last_critical_sensor_data[v][1] = digitalRead((int)critical_sensor_ports[v]);
+  }
+ 
+  global_sensor_value = "";
+  //arrayjj.printTo(Serial);
+  //arrayj.printTo(Serial);
+  //new_object.printTo(Serial);
+  new_object.printTo(global_sensor_value);
+  global_sensor_value.replace("\"", "\\\"");
+}
+
+
+
+
+
+
+
+
+// MISC methods
+
+
+int updater(String params) {
+  // Updates software to newest version
+  Serial.println("Updating from http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
+  t_httpUpdate_return ret = ESPhttpUpdate.update("http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
+int vn = 0;
+    while(vn == 0){
+    switch(ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
+            Serial.println();
+            Serial.println();
+            Serial.println();
+            ESPhttpUpdate.update("http://" + (String)server_ip.c_str() + "/binaries/esp.bin");
+            vn = 1;
+            break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("HTTP_UPDATE_NO_UPDATES");
+            Serial.println();
+            Serial.println();
+            vn = 1;
+            break;
+
+        case HTTP_UPDATE_OK:
+            Serial.println("HTTP_UPDATE_OK");
+            Serial.println();
+            Serial.println();
+            Serial.println();
+            vn = 1;
+            break;
+    }
+    }
+}
 int restart(String params){
+  // Restarts the board
   ESP.restart();
   return 1;
 }
 void processSyncEvent(NTPSyncEvent_t ntpEvent) {
+  // Processes NTP synchronization event
   if (ntpEvent) {
     Serial.print("Time Sync error: ");
     if (ntpEvent == noResponse)
@@ -256,52 +650,10 @@ void processSyncEvent(NTPSyncEvent_t ntpEvent) {
       Serial.println("Invalid NTP server address");
   }
 }
-void normal_setup() {
-  Serial.println("-normal-setup-");
-  WiFi.mode(WIFI_STA);
-  servermode = false;
-  rest.variable("software_version", &ver);
-  rest.function("update", updater);
-  rest.function("reset_eeprom", reset);
-  rest.function("restart", restart);
-  rest.variable("ip", &ipaddr);
-  rest.variable("time", &realTime);
-  rest.set_id("rtx04");
-  rest.set_name("esp8266");
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting to wifi with ssid='" + (String)ssid + "' password='" + (String)password + "'");
-  int counter = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    if(counter >= 25){
-      reset("none");
-      Serial.println("Couldn't connect with WiFi. Switching to configuration mode");
-      ESP.restart();
-    }
-    delay(500);
-    Serial.print(".");
-    counter++;
+void tcpCleanup() {
+  // Fixes heap issues
+  while(tcp_tw_pcbs!=NULL)
+  {
+    tcp_abort(tcp_tw_pcbs);
   }
-  ipaddr = WiFi.localIP().toString();
-  Serial.println("");
-  Serial.println("WiFi connected with IP " + ipaddr);
-  WiFiClient sync;
-  if (!sync.connect(server_ip, 80)) {
-    Serial.println("connection failed");
-  } else {
-    sync.print("GET /?config&name=" + String(device_name) + "&version=" + ver + "&ip_address=" + ipaddr + " HTTP/1.1\r\nHost: " + String(server_ip) + "\r\n\r\n");
-    String line = sync.readStringUntil('\r');
-    Serial.println(line);
-    if(line.indexOf("200 OK") > -1){
-      Serial.println("ok");
-    }
-    Serial.println("closing connection");
-    sync.stop();
-  }
-  NTP.onNTPSyncEvent([](NTPSyncEvent_t event) {
-    ntpEvent = event;
-    syncEventTriggered = true;
-  });
-  NTP.begin("tempus2.gum.gov.pl", 1, true);
-  NTP.setInterval(600);
-  server.begin();
 }
